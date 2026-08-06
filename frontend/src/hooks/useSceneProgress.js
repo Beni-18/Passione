@@ -3,13 +3,12 @@ import { useGlobalScroll } from '../components/ScrollProvider';
 import { useState, useEffect } from 'react';
 
 export const SCENE_RANGES = [
-  { start: 0.00, end: 0.18, name: "Hero" },
-  { start: 0.12, end: 0.35, name: "Metadata" },
-  { start: 0.28, end: 0.52, name: "HUD" },
-  { start: 0.45, end: 0.70, name: "Sphere" },
-  { start: 0.62, end: 0.85, name: "Prediction" },
-  { start: 0.78, end: 0.95, name: "Explainability" },
-  { start: 0.90, end: 1.00, name: "Platform" }
+  { start: 0.00, end: 0.20, name: "Hero" },
+  { start: 0.15, end: 0.38, name: "Metadata" },
+  { start: 0.32, end: 0.55, name: "HUD" },
+  { start: 0.48, end: 0.72, name: "Sphere" },
+  { start: 0.65, end: 0.86, name: "Prediction" },
+  { start: 0.80, end: 1.00, name: "Platform" }
 ];
 
 export function useSceneProgress(index) {

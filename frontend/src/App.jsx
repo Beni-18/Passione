@@ -6,17 +6,15 @@ import MetadataCloud from './scenes/MetadataCloud';
 import JarvisHUD from './scenes/JarvisHUD';
 import AISphere from './scenes/AISphere';
 import PredictionReveal from './scenes/PredictionReveal';
-import ExplainabilityReport from './scenes/ExplainabilityReport';
 import PlatformLaunch from './scenes/PlatformLaunch';
 
 const PIPELINE_STAGES = [
-  { label: "01 / CLIP", scrollPos: 0.05, name: "Movie Clip" },
-  { label: "02 / METADATA", scrollPos: 0.22, name: "Extraction" },
-  { label: "03 / PROCESS", scrollPos: 0.38, name: "AI Core" },
-  { label: "04 / PROJECTION", scrollPos: 0.58, name: "Model weights" },
-  { label: "05 / PREDICT", scrollPos: 0.74, name: "Confidence" },
-  { label: "06 / SHAP", scrollPos: 0.88, name: "Explainability" },
-  { label: "07 / LAUNCH", scrollPos: 0.98, name: "Platform" }
+  { label: "Hero", scrollPos: 0.08 },
+  { label: "Metadata", scrollPos: 0.25 },
+  { label: "Features", scrollPos: 0.42 },
+  { label: "AI", scrollPos: 0.60 },
+  { label: "Predict", scrollPos: 0.75 },
+  { label: "Platform", scrollPos: 0.92 }
 ];
 
 // Inner Coordinator layout that consumes ScrollContext
@@ -76,16 +74,17 @@ function MainLayout() {
         <div className="font-bold tracking-tight text-white uppercase text-sm">
           Trend<span className="text-accent-blue">AI</span>
         </div>
-        <div className="hidden md:flex items-center space-x-6 text-[10px] tracking-[0.2em] font-mono text-white/50">
-          <span className="hover:text-white transition-colors cursor-pointer">DOCUMENTATION</span>
-          <span className="hover:text-white transition-colors cursor-pointer">ML_SCHEMA</span>
-          <span className="hover:text-white transition-colors cursor-pointer">FAST_API</span>
+        <div className="hidden md:flex items-center space-x-6 text-[10px] tracking-[0.2em] uppercase font-mono text-white/50">
+          <span className="hover:text-white transition-colors cursor-pointer">Experience</span>
+          <span className="hover:text-white transition-colors cursor-pointer">Pipeline</span>
+          <span className="hover:text-white transition-colors cursor-pointer">Platform</span>
+          <span className="hover:text-white transition-colors cursor-pointer">About</span>
         </div>
         <button 
-          onClick={() => handleStageClick(6)}
+          onClick={() => handleStageClick(5)}
           className="px-4 py-1.5 rounded-full border border-white/10 hover:border-accent-blue/40 bg-white/5 text-[10px] font-bold font-mono tracking-widest text-white cursor-pointer transition-colors"
         >
-          CONNECT_APP
+          Launch App
         </button>
       </nav>
 
@@ -113,7 +112,6 @@ function MainLayout() {
         <JarvisHUD />
         <AISphere />
         <PredictionReveal />
-        <ExplainabilityReport />
         <PlatformLaunch />
 
         {/* HUD Sidebar Navigation */}
@@ -137,22 +135,21 @@ function MainLayout() {
               { clamp: true }
             );
 
+
             return (
               <button 
                 key={idx}
                 onClick={() => handleStageClick(idx)}
-                className="flex items-center justify-end group text-right cursor-pointer outline-none"
+                className="flex items-center justify-end group text-right cursor-pointer outline-none space-x-2.5"
               >
-                {/* Labels shown on active or hover */}
                 <motion.span 
-                  className="font-mono text-[9px] mr-3 tracking-widest text-white hidden md:block select-none pointer-events-none"
+                  className="font-sans text-[10px] tracking-wider text-white hidden md:block select-none pointer-events-none uppercase font-bold"
                   style={{ opacity: labelOpacity }}
                 >
                   {stage.label}
                 </motion.span>
-                {/* Dot */}
                 <motion.div 
-                  className="w-1.5 h-1.5 rounded-full border border-white/10 group-hover:border-accent-blue/50"
+                  className="w-1.5 h-1.5 rounded-full border border-white/20 group-hover:border-accent-blue/50 transition-colors"
                   style={{ backgroundColor: dotColor }}
                 />
               </button>
