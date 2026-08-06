@@ -67,16 +67,31 @@ band). The backend already renders this correctly per `docs/INTEGRATION.md` Seam
 
 ## Known integration risks — raised per docs/INTEGRATION.md Seam 1 rule 3 ("raise it, don't work around it")
 
-**1. Dependency version mismatch (`ml/requirements.txt` vs `backend/requirements.txt`).**
+**1. Dependency version mismatch (`ml/requirements.txt` vs `backend/requirements.txt`) — tested, mixed result.**
 `ml/requirements.txt` pins `scikit-learn==1.8.0`, `pandas==2.3.3`, `joblib==1.5.3` — the exact
 versions `ml/artifacts/{lr_v1,rf_v1}/model.joblib` were actually fit and pickled with.
-`backend/requirements.txt` pins `scikit-learn==1.6.0`, `pandas==2.2.3`, `joblib==1.4.2`. scikit-learn's
-own docs do not guarantee joblib-pickled estimators load correctly across versions. **Not verified
-either way in this repo yet** — installing both requirement files into one environment (as the CI
-workflow and Docker build both do) needs someone to actually confirm the artifacts load under the
-older pins, or the two files need to agree on one set of versions. Whoever resolves this should
-also re-run `ml/scripts/check_reproducibility.py` afterward, since a version bump on either side
-could change floating-point evaluation results.
+`backend/requirements.txt` pins the older `scikit-learn==1.6.0`, `pandas==2.2.3`, `joblib==1.4.2`.
+
+Tested directly (isolated venv, backend's exact older pins, loading each `model.joblib` and calling
+`predict_proba`):
+- **`rf_v1` (the currently active model) loads and predicts correctly** under the older pins —
+  only `InconsistentVersionWarning`s, no functional failure.
+- **`lr_v1` crashes** under the older pins: `AttributeError: 'LogisticRegression' object has no
+  attribute 'multi_class'`. A real, sklearn-internal breaking change between 1.6.0 and 1.8.0, not a
+  bug in this code.
+
+**Practically low-risk today, but fragile:** the documented CI/Docker install order is
+`backend/requirements.txt` *then* `ml/requirements.txt` — pip resolves sequentially, so the second
+install upgrades scikit-learn/pandas/joblib to the 1.8.0/2.3.3/1.5.3 pins for the actual running
+environment (verified: a fresh venv installed in that exact order ends up on 1.8.0, and both
+`ml/scripts/smoke_test.py` and `check_reproducibility.py` pass under it). So today, with `rf_v1`
+active, this isn't broken. It becomes broken silently if: (a) the install order ever changes, (b)
+`lr_v1` is ever activated via `POST /models/activate` under an environment that kept the older
+pins, or (c) `backend/requirements.txt` gets installed *after* `ml/requirements.txt` in some future
+CI/Docker change. `backend/requirements.txt`'s own pins are also currently misleading — they're
+never actually what's running, since `ml/requirements.txt` silently overrides them on install.
+Recommend the two files agree on one explicit set of versions rather than relying on install-order
+to paper over the difference.
 
 **2. `tests/test_reproducibility.py` calls `mlcore.api.train_model()` directly against
 `data/samples/clean_50.csv`**, which is shaped as `title,genre,duration_minutes,upload_time,
