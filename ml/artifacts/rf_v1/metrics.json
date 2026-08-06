@@ -1,0 +1,37 @@
+{
+  "accuracy": 0.7997170256249018,
+  "algo": "random_forest",
+  "confusion_matrix": {
+    "fn": 454,
+    "fp": 820,
+    "tn": 3951,
+    "tp": 1136
+  },
+  "f1": 0.640721940214326,
+  "label_strategy": "percentile_threshold",
+  "library_versions": {
+    "joblib": "1.5.3",
+    "numpy": "2.3.5",
+    "pandas": "2.3.3",
+    "scikit_learn": "1.8.0"
+  },
+  "majority_baseline_accuracy": 0.7500393019965415,
+  "min_roc_auc_gate": 0.6,
+  "model_version": "rf_v1",
+  "n_positive_test": 1590,
+  "n_test": 6361,
+  "n_train": 25440,
+  "passed_gate": true,
+  "popularity_threshold": 3.669545,
+  "positive_rate": 0.24996069800345858,
+  "pr_auc": 0.6824455121214663,
+  "precision": 0.5807770961145194,
+  "recall": 0.7144654088050314,
+  "roc_auc": 0.8578052146814678,
+  "rows_failed": 0,
+  "rows_processed": 31801,
+  "rows_received": 31801,
+  "seed": 42,
+  "threshold_percentile": 0.75,
+  "trained_at": "2026-08-06T13:14:47.661959+00:00"
+}

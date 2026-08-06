@@ -1,4 +1,16 @@
-# mlcore's pinned runtime dependencies. Empty at M0 — the dummy api.py uses
-# only the standard library. Real deps (scikit-learn, pandas, etc.) land at
-# M3/M4 and must stay version-compatible with backend/requirements.txt on
-# the shared interpreter (docs/INTEGRATION.md Seam 1, rule 3).
+# mlcore's pinned runtime dependencies (docs/INTEGRATION.md Seam 1, rule 3).
+#
+# KNOWN VERSION MISMATCH WITH backend/requirements.txt — flagged per Seam 1
+# rule 3 ("if versions conflict, that's a blocking issue to raise with the
+# backend owner immediately, not something to work around silently"):
+#   backend/requirements.txt pins scikit-learn==1.6.0, pandas==2.2.3, joblib==1.4.2
+#   these versions below are what the ALREADY-TRAINED artifacts in
+#   ml/artifacts/{lr_v1,rf_v1} were actually fit and pickled with.
+# scikit-learn's own docs warn that joblib-pickled estimators are not
+# guaranteed compatible across versions. This needs a team decision before
+# the two requirements files are installed into the same environment (see
+# ml/README_ML.md's "Known integration risks" section for options).
+pandas==2.3.3
+scikit-learn==1.8.0
+numpy==2.3.5
+joblib==1.5.3
