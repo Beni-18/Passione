@@ -26,11 +26,20 @@ over SMOTE/undersampling because it's a single sklearn argument, requires no sec
 for reproducibility, and doesn't fabricate or discard rows — important given
 `tests/test_reproducibility.py` asserts byte-identical metrics across two runs on the same seed.
 
-**Readiness/grounding thresholds (decided 2026-08-06):**
-- `MIN_ROC_AUC = 0.65` — gates `GET /health` readiness (`backend/app/core/config.py`).
-- `GROUNDING_MIN_CONFIDENCE = 0.60` — gates `grounded: false` in `POST /predict`.
-Both are the config module's defaults already; chosen as a modest-but-real bar rather than a
-lenient one, so a passing `/health` actually means something.
+**Readiness threshold (decided 2026-08-06):** `MIN_ROC_AUC = 0.65` — the config module's default
+(`backend/app/core/config.py`), chosen as a modest-but-real bar rather than a lenient one, so a
+passing `/health` actually means something. It gates two things: `GET /health`'s `status`, and
+whether `POST /predict` is attempted at all — if the service isn't ready, the backend returns
+`MODEL_NOT_READY` (409) before calling mlcore, rather than calling it and second-guessing the
+result.
+
+**Ownership split (decided 2026-08-06):** whether a *specific* prediction is trustworthy —
+`grounded`, `predicted_label`, `reason` — is mlcore's call, not the backend's. There is no
+backend-side confidence threshold; a `GROUNDING_MIN_CONFIDENCE` setting existed briefly during
+integration but was removed once it became clear it was silently overriding mlcore's own
+`grounded` decision rather than deferring to it. Two different questions, two different owners: "is
+the service ready at all" (backend, `MIN_ROC_AUC`) and "is this specific answer trustworthy"
+(mlcore).
 
 **Enrichment (decided 2026-08-06):** metadata-only for the build window — `ENRICHMENT_ENABLED`
 defaults to `false`. TMDB's live client (`enrichment.py`) exists and fails open, but is not

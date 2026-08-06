@@ -5,16 +5,26 @@ get_model_metadata, predict, predict_batch, train_model — docs/INTEGRATION.md
 Seam 1) in try/except: an unexpected exception here becomes the same
 grounded:false / degraded shape a normal ungrounded response would produce,
 never a 500. Also translates mlcore's raw dicts into our Pydantic schemas
-(app/schemas/*) and applies MIN_ROC_AUC / GROUNDING_MIN_CONFIDENCE from
-core/config.py on top of whatever mlcore reports — mlcore doesn't know about
-our thresholds, so a "grounded" or "passed_gate" claim from mlcore is only
-half the answer; this module is where our policy gets the final say.
+(app/schemas/*).
+
+Ownership split (do not blur this):
+  - mlcore owns prediction semantics. `grounded`, `predicted_label`,
+    `reason` pass through from mlcore's predict() response unmodified — no
+    backend recomputation, no second confidence threshold. mlcore's
+    `grounded` claim is final.
+  - The backend owns service readiness only, via MIN_ROC_AUC: it gates
+    `/health`'s status and gates whether `/predict` is even attempted —
+    if the service isn't ready, get_predict_response raises
+    ModelNotReadyError before calling mlcore.predict() at all, rather than
+    calling it and second-guessing the result.
 
 Does NOT do any feature engineering, training, or model loading itself —
 all of that is inside mlcore. Does NOT change PredictResponse/HealthResponse/
 etc. field names to match mlcore's dict keys — every field is mapped
 explicitly below, by name, so mlcore's internal vocabulary never leaks
-through this boundary.
+through this boundary (the one exception being predicted_label's vocabulary,
+which is coerced to fit our schema's Literal — see _LABEL_MAP below; that
+coercion is a schema-fit, not a semantic override of mlcore's decision).
 """
 from __future__ import annotations
 
@@ -152,15 +162,28 @@ def _safe_train_model(
 
 
 # ---------------------------------------------------------------------------
-# Layer 2: translation into our Pydantic schemas + our own threshold policy.
-# This is "the grounding/readiness policy" — MIN_ROC_AUC and
-# GROUNDING_MIN_CONFIDENCE are applied here, on top of mlcore's own claims.
+# Layer 2: translation into our Pydantic schemas + our readiness policy.
+# MIN_ROC_AUC is the only threshold applied here — it gates /health and
+# whether /predict is attempted at all. It never overrides mlcore's own
+# per-prediction grounding decision.
 # ---------------------------------------------------------------------------
+
+def _roc_auc_clears_bar(roc_auc: float | None) -> bool:
+    return roc_auc is not None and roc_auc >= settings.min_roc_auc
+
+
+def _is_service_ready() -> bool:
+    """True only when mlcore reports a loaded model whose roc_auc clears
+    MIN_ROC_AUC — the same definition /health uses. Gates whether /predict
+    is attempted at all.
+    """
+    raw = _safe_health_check()
+    return bool(raw.get("model_loaded")) and _roc_auc_clears_bar(raw.get("roc_auc"))
+
 
 def get_health_response(enrichment_api_connected: bool) -> HealthResponse:
     raw = _safe_health_check()
-    roc_auc = raw.get("roc_auc")
-    is_ready = bool(raw.get("model_loaded")) and roc_auc is not None and roc_auc >= settings.min_roc_auc
+    is_ready = bool(raw.get("model_loaded")) and _roc_auc_clears_bar(raw.get("roc_auc"))
     return HealthResponse(
         status="ok" if is_ready else "degraded",
         model_loaded=bool(raw.get("model_loaded")),
@@ -216,45 +239,31 @@ def activate_model(model_version: str) -> ActiveModelResponse:
     return ActiveModelResponse(active=raw.get("model_version") or model_version)
 
 
+# Schema-fit only: our PredictResponse.predicted_label is a Literal that
+# doesn't include mlcore's "uncertain" value. This does not decide grounding
+# or reinterpret mlcore's answer — it only maps vocabulary so the response
+# validates. grounded/reason are never touched here.
 _LABEL_MAP = {"trending": "trending", "not_trending": "not_trending"}
 
 
 def get_predict_response(request: PredictRequest) -> PredictResponse:
+    if not _is_service_ready():
+        raise ModelNotReadyError(
+            "No trained model is loaded, or its metrics haven't cleared MIN_ROC_AUC."
+        )
+
     payload = request.model_dump(mode="json")
     raw = _safe_predict(payload)
 
-    mlcore_grounded = bool(raw.get("grounded"))
-    confidence = raw.get("confidence")
-    errors = raw.get("errors") or []
-
-    meets_confidence_bar = confidence is not None and confidence >= settings.grounding_min_confidence
-    grounded = mlcore_grounded and meets_confidence_bar and not errors
-
-    if not grounded:
-        reason = raw.get("reason") or "Prediction not grounded."
-        if errors:
-            reason = f"{reason} ({'; '.join(str(e) for e in errors)})"
-        elif mlcore_grounded and not meets_confidence_bar:
-            reason = (
-                f"Confidence {confidence} is below the grounding threshold "
-                f"({settings.grounding_min_confidence})."
-            )
-        return PredictResponse(
-            trending_probability=None,
-            predicted_label="unknown",
-            model_version=raw.get("model_version"),
-            top_features=[],
-            grounded=False,
-            reason=reason,
-        )
+    grounded = bool(raw.get("grounded"))
 
     return PredictResponse(
-        trending_probability=raw.get("trending_probability"),
+        trending_probability=raw.get("trending_probability") if grounded else None,
         predicted_label=_LABEL_MAP.get(raw.get("predicted_label"), "unknown"),
         model_version=raw.get("model_version"),
-        top_features=raw.get("top_features") or [],
-        grounded=True,
-        reason=None,
+        top_features=(raw.get("top_features") or []) if grounded else [],
+        grounded=grounded,
+        reason=raw.get("reason"),
     )
 
 

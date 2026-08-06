@@ -27,7 +27,7 @@ check "GET /"         200 "$BASE_URL/"
 check "GET /metrics (no model yet)" 409 "$BASE_URL/metrics"
 check "GET /models"   200 "$BASE_URL/models"
 
-check "POST /predict (ungrounded, no model)" 200 \
+check "POST /predict (service not ready, no model)" 409 \
   -X POST "$BASE_URL/predict" -H 'content-type: application/json' \
   -d @tests/fixtures/predict_ok.json
 

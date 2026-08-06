@@ -51,7 +51,14 @@ real row counts (`rows_processed`, `rows_failed`) rather than a spinner.
 ## Why evaluation is honest by construction
 
 `/health` is not `"ok"` until a model is both loaded *and* clears `MIN_ROC_AUC` — a model that
-finished `.fit()` but underperforms is "trained", not "ready". `/predict` marks a prediction
-`grounded: false` with a plain-language `reason` whenever the category is unseen or confidence is
-below `GROUNDING_MIN_CONFIDENCE`, rather than returning a number that looks the same whether or
-not the model actually knows anything about the input.
+finished `.fit()` but underperforms is "trained", not "ready". That same `MIN_ROC_AUC` check gates
+`/predict`: if the service isn't ready, the backend returns `MODEL_NOT_READY` (409) before ever
+calling mlcore, rather than asking a model that isn't ready to guess.
+
+Once the service is ready, whether a *specific* prediction is trustworthy is mlcore's call, not
+the backend's. `grounded`, `predicted_label`, and `reason` pass through from `mlcore.predict()`
+unmodified — the backend does not re-derive grounding from a confidence number, because mlcore is
+the only thing that actually knows why a given input is or isn't trustworthy (an unseen category,
+a low-confidence region of the model, or anything else mlcore's internals might reason about). Two
+different questions, two different owners: "is the service ready at all" (backend, `MIN_ROC_AUC`)
+and "is this specific answer trustworthy" (mlcore).

@@ -188,9 +188,14 @@ side.
 
 `mlcore_client.py` never trusts that mlcore "never raises": every one of the six calls is wrapped
 in try/except, and an unexpected exception degrades to the same `grounded: false` /
-`status: degraded` shape a normal ungrounded response would produce. It also applies our own
-`MIN_ROC_AUC` and `GROUNDING_MIN_CONFIDENCE` thresholds on top of whatever mlcore reports —
-mlcore's own `grounded` or `passed_gate` claim is not the final word.
+`status: degraded` shape a normal ungrounded response would produce.
+
+The ownership split is strict: **mlcore owns prediction semantics** — `grounded`,
+`predicted_label`, and `reason` pass through from `predict()` unmodified, no backend
+recomputation, no confidence threshold on our side. **The backend owns service readiness only**,
+via `MIN_ROC_AUC` — it gates `/health`'s status and gates whether `/predict` is attempted at all.
+If the service isn't ready, the backend returns `MODEL_NOT_READY` (409) before calling
+`mlcore.predict()`, rather than calling it and second-guessing the result.
 
 Until `mlcore`'s internals are real, they return dummy, contract-shaped, `grounded: false`
 responses: `/health` reports `degraded` with `model_loaded: false`, and `/predict` returns
@@ -245,12 +250,17 @@ Otherwise `"degraded"`. A started container is not a ready service.
   "upload_time": "2026-08-06T18:30:00Z", "language": "en",
   "tags": ["suspense", "indie", "short-film"] }
 ```
+Readiness is checked before mlcore is called at all: if no model is loaded or its `roc_auc` hasn't
+cleared `MIN_ROC_AUC`, this returns `MODEL_NOT_READY` (409) immediately — `mlcore.predict()` is
+never invoked. Once the service is ready, mlcore's answer passes through unmodified:
 ```json
 { "trending_probability": 0.71, "predicted_label": "trending", "model_version": "rf_v3",
   "top_features": ["genre=Thriller", "upload_hour=18", "tag_count=3"],
   "grounded": true, "reason": null }
 ```
-Ungrounded — unseen category, no model, or confidence under `GROUNDING_MIN_CONFIDENCE`:
+Ungrounded — service is ready, but mlcore itself reports an unseen category or low confidence for
+this specific input. `grounded`, `predicted_label`, and `reason` are mlcore's own decision, never
+re-derived by the backend:
 ```json
 { "trending_probability": null, "predicted_label": "unknown", "model_version": "rf_v3",
   "top_features": [], "grounded": false,

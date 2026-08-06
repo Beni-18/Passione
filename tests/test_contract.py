@@ -1,9 +1,10 @@
 """Asserts response shapes match docs/API_CONTRACT.md.
 
 Phase 1: only exercises the shapes reachable without a trained model
-(health degraded, train/status happy path, predict ungrounded, metrics
-409). Grounded-prediction and /models/activate shapes get covered once a
-real model artifact exists to test against.
+(health degraded, train/status happy path, predict/metrics both 409 since
+the service isn't ready). Grounded/ungrounded PredictResponse shapes are
+covered in tests/test_grounding_ownership.py via a monkeypatched mlcore,
+since the real dummy mlcore never reports a ready service.
 """
 from __future__ import annotations
 
@@ -48,7 +49,7 @@ def test_train_then_status_shape():
     }
 
 
-def test_predict_shape_ungrounded():
+def test_predict_not_ready():
     response = client.post(
         "/predict",
         json={
@@ -60,14 +61,8 @@ def test_predict_shape_ungrounded():
             "tags": ["suspense"],
         },
     )
-    assert response.status_code == 200
-    body = response.json()
-    assert set(body) == {
-        "trending_probability", "predicted_label", "model_version",
-        "top_features", "grounded", "reason",
-    }
-    assert body["grounded"] is False
-    assert body["trending_probability"] is None
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "MODEL_NOT_READY"
 
 
 def test_metrics_not_ready():

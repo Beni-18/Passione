@@ -14,7 +14,7 @@ Every non-2xx response uses this shape:
 | Code | HTTP status | Raised by |
 |---|---|---|
 | `VALIDATION_ERROR` | 422 | Any request that fails Pydantic validation |
-| `MODEL_NOT_READY` | 409 | `GET /metrics`, `POST /models/activate` when no model is loaded |
+| `MODEL_NOT_READY` | 409 | `GET /metrics`, `POST /predict`, `POST /models/activate` when no model is loaded and ready |
 | `JOB_NOT_FOUND` | 404 | `GET /status` with an unknown `job_id` |
 | `EMPTY_DATASET` | 400 | `POST /train` with zero data rows (empty or header-only CSV) |
 | `BAD_CSV` | 400 | `POST /train` with an unparseable file or missing `file`/`csv_path` |
@@ -63,6 +63,15 @@ unknown `job_id`.
   "tags": ["suspense", "indie", "short-film"] }
 ```
 
+**Readiness gate, checked before mlcore is called at all:** if no model is loaded or its `roc_auc`
+hasn't cleared `MIN_ROC_AUC` — the same definition `/health` uses — this raises `MODEL_NOT_READY`
+(409) immediately. mlcore's `predict()` is never invoked in that case; there's no ungrounded 200 to
+return when the service itself isn't ready.
+
+Once the service is ready, mlcore is called and its answer is passed through as-is — `grounded`,
+`predicted_label`, and `reason` are mlcore's own decision, not re-derived or second-guessed by the
+backend:
+
 Grounded response:
 ```json
 { "trending_probability": 0.71, "predicted_label": "trending", "model_version": "rf_v3",
@@ -70,19 +79,19 @@ Grounded response:
   "grounded": true, "reason": null }
 ```
 
-Ungrounded response (no model, unseen category, or confidence under `GROUNDING_MIN_CONFIDENCE`):
+Ungrounded response (service is ready, but mlcore itself reports low confidence or an unseen
+category for this specific input):
 ```json
-{ "trending_probability": null, "predicted_label": "unknown", "model_version": "dummy_v0",
+{ "trending_probability": null, "predicted_label": "unknown", "model_version": "rf_v3",
   "top_features": [], "grounded": false,
-  "reason": "No trained model loaded yet (dummy pipeline stage)." }
+  "reason": "Unseen genre 'Kuchipudi-Fusion' — no fallback encoding." }
 ```
-Note `model_version` may be non-null even when ungrounded — it identifies whatever mlcore build is
-running, not whether that build's model is ready to score anything.
 
 Missing a required field returns `VALIDATION_ERROR` (422), not a 200 with a null score.
 
-**Current build state: always returns the ungrounded shape above — mlcore's `predict()` is still
-the dummy implementation (docs/INTEGRATION.md Seam 1).**
+**Current build state: always raises `MODEL_NOT_READY` (409) — mlcore's `health_check()` never
+reports a ready model at this stage (docs/INTEGRATION.md Seam 1), so the readiness gate never lets
+a call through to mlcore's `predict()`.**
 
 ## GET /metrics
 
@@ -138,3 +147,4 @@ Service banner, not part of the versioned contract:
 |---|---|
 | 2026-08-06 | Initial contract, mirrors CLAUDE.md section 5. Phase 1 skeleton: all endpoints live, `/predict` always ungrounded, `/metrics` and `/models/activate` always 409, `/health` always degraded. |
 | 2026-08-06 | ML integration seam changed from a `models/*.joblib` file handoff to a frozen `mlcore.api` import (docs/INTEGRATION.md Seam 1). No response field names or shapes changed — only the internal source of the (still-dummy) values, and the fact that `model_version` can now be non-null even in an ungrounded response. |
+| 2026-08-06 | **Breaking (build-window only, dummy stage):** `POST /predict` now raises `MODEL_NOT_READY` (409) instead of returning a 200 ungrounded response when the service isn't ready — the readiness check happens before mlcore is called, rather than after. `GROUNDING_MIN_CONFIDENCE` removed; the backend no longer second-guesses mlcore's own `grounded` decision once the service is ready. |
