@@ -122,23 +122,26 @@ passione/
 │       │   ├── train.py
 │       │   ├── status.py
 │       │   ├── predict.py
-│       │   └── metrics.py
+│       │   ├── metrics.py
+│       │   └── models.py          # GET /models, POST /models/activate shapes
 │       ├── services/              # all business logic
 │       │   ├── job_manager.py     # in-memory job registry, real row counts
-│       │   ├── training_service.py# orchestrates a training run in the background
-│       │   ├── model_registry.py  # discovers, loads, versions, activates artifacts
+│       │   ├── training_service.py# CSV parsing/validation; persists uploads for mlcore.train_model
 │       │   ├── prediction_service.py # grounding decision lives HERE, not in the route
 │       │   └── enrichment.py      # TMDB client: retries, timeout, graceful fallback
-│       ├── ml_adapter/            # the ONLY thing that knows the model exists
-│       │   ├── interface.py       # Protocols: FeaturePipeline, TrendModel, LoadedBundle
-│       │   ├── joblib_loader.py   # real loader — the single file that changes on handoff
-│       │   └── stub.py            # always-ungrounded stub used until the model lands
+│       ├── ml_adapter/            # the ONLY thing that imports mlcore
+│       │   └── mlcore_client.py   # wraps mlcore's six functions; applies our thresholds
 │       └── core/
 │           ├── config.py          # pydantic-settings — the ONLY place env is read
 │           ├── errors.py          # AppError hierarchy + handlers
 │           └── logging.py
 │
-├── ml/                            # ← TEAMMATE A. Not mine. See docs/INTEGRATION.md.
+├── ml/                             # ← TEAMMATE A. Not mine. See docs/INTEGRATION.md.
+│   ├── pyproject.toml              # installable package: `pip install -e ./ml`
+│   ├── requirements.txt            # PINNED (empty until real training deps land)
+│   └── mlcore/
+│       ├── __init__.py
+│       └── api.py                  # the frozen interface — six functions, nothing else
 │
 ├── frontend/                      # ← TEAMMATE B. Minimal, working, replaceable.
 │   ├── index.html                 # one page: form → score → metrics
@@ -165,26 +168,34 @@ passione/
 
 ## 4. The two integration seams
 
-Neither seam is a Python import. That is the whole design.
-
 ```
-frontend/  ──HTTP + JSON──▶  backend/  ──files on disk──▶  ml/
-             API_CONTRACT.md              model bundle
+frontend/  ──HTTP + JSON──▶  backend/  ──frozen Python import──▶  ml/
+             API_CONTRACT.md              mlcore.api
 ```
 
-### Seam 1 — model artifact
+### Seam 1 — mlcore import
 
-`backend/` **never** imports from `ml/`. It reads `models/model_v{N}.joblib` and
-`models/metrics_v{N}.json` through `backend/app/ml_adapter/joblib_loader.py`.
+`ml/` ships an installable package, `mlcore`, exposing exactly six functions from `mlcore/api.py`:
+`health_check`, `load_model`, `get_model_metadata`, `predict`, `predict_batch`, `train_model`.
+`backend/app/ml_adapter/mlcore_client.py` is the **only** file in `backend/` that imports it —
+routes and services call the adapter, never `mlcore` directly.
 
-**The exact bundle format is specified in `docs/INTEGRATION.md`. Read it before writing or changing
-the loader, and treat it as fixed.** It is a negotiated contract with the ML owner, not something to
-adjust unilaterally — if the loader cannot work with the format as written, stop and tell me rather
-than changing either side.
+**These six signatures and their return shapes are specified and frozen in `docs/INTEGRATION.md`.
+Read it before writing or changing anything in `mlcore_client.py`, and treat the signatures as
+fixed.** It is a negotiated contract with the ML owner, not something to adjust unilaterally — if
+the adapter cannot work with the shape as written, stop and tell me rather than changing either
+side.
 
-Until those files exist the backend runs on `ml_adapter/stub.py`: it boots fine, `/health` reports
-`degraded` with `model_loaded: false`, and `/predict` returns `grounded: false`. **It never
-fabricates a score.** Swapping in the real model changes exactly one file: `joblib_loader.py`.
+`mlcore_client.py` never trusts that mlcore "never raises": every one of the six calls is wrapped
+in try/except, and an unexpected exception degrades to the same `grounded: false` /
+`status: degraded` shape a normal ungrounded response would produce. It also applies our own
+`MIN_ROC_AUC` and `GROUNDING_MIN_CONFIDENCE` thresholds on top of whatever mlcore reports —
+mlcore's own `grounded` or `passed_gate` claim is not the final word.
+
+Until `mlcore`'s internals are real, they return dummy, contract-shaped, `grounded: false`
+responses: `/health` reports `degraded` with `model_loaded: false`, and `/predict` returns
+`grounded: false`. **It never fabricates a score.** Swapping in real training/inference logic
+changes nothing outside `ml/` — the six signatures don't move.
 
 ### Seam 2 — backend → UI
 
@@ -275,9 +286,13 @@ row whenever it changes.
 - **Enrichment is optional and always fallback-safe.** `httpx.AsyncClient`, explicit timeout, capped
   retries; on failure log once and continue with metadata-only features. A slow TMDB call must never
   block or fail `/predict`.
-- **Model loading** is owned by `model_registry.py`: discover `models/model_v*.joblib`, pick highest
-  version (or the activated one), validate `meta`, check metrics against `MIN_ROC_AUC`, expose
-  `is_ready`. Keep the previously loaded model live if a new artifact fails to load.
+- **Model loading and readiness are owned by `ml_adapter/mlcore_client.py`.** It calls
+  `mlcore.health_check()` / `get_model_metadata()`, checks the reported `roc_auc` against
+  `MIN_ROC_AUC`, and exposes translated `HealthResponse`/`MetricsResponse`/`ModelListResponse`
+  objects — no other module re-derives readiness. mlcore itself owns discovery and version
+  selection; the backend never lists artifacts off disk. `GET /models`'s `available` list can only
+  ever reflect the one currently-loaded version, since the frozen interface has no "list all
+  versions" call.
 - Type hints everywhere. `async def` for I/O-bound handlers.
 
 ---
