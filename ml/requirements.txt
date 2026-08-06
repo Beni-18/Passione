@@ -1,0 +1,4 @@
+# mlcore's pinned runtime dependencies. Empty at M0 — the dummy api.py uses
+# only the standard library. Real deps (scikit-learn, pandas, etc.) land at
+# M3/M4 and must stay version-compatible with backend/requirements.txt on
+# the shared interpreter (docs/INTEGRATION.md Seam 1, rule 3).

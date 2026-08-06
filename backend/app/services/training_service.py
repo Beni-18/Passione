@@ -1,24 +1,19 @@
-"""Orchestrates a training run as a FastAPI background task.
+"""Backend-side CSV handling for POST /train.
 
-Called by routes/train.py after it has created a JobRecord and returned 202.
-Does NOT do any actual model fitting — that lives in ml/src/train.py, a
-separate process the ML owner runs. In phase 1 (this skeleton), this module
-only simulates the job lifecycle so /status has something real to report
-against a fake job: it writes no artifact and trains nothing.
-
-Row-level failures must increment rows_failed and log the row index rather
-than aborting the run — that behavior is not yet exercised here since the
-skeleton never reads a real CSV row-by-row.
+Row counting and hostile-input validation happen here, entirely on the
+backend side, before mlcore is ever called — mlcore's train_model() takes a
+csv_path, not raw bytes, so a multipart upload must be written to disk first
+via persist_uploaded_csv(). The actual training run (the background task
+itself) is orchestrated by ml_adapter/mlcore_client.run_training(), not
+here — this module owns file handling only.
 """
 from __future__ import annotations
 
 import csv
 import io
-import logging
+from pathlib import Path
 
-from app.services.job_manager import job_manager
-
-logger = logging.getLogger(__name__)
+from app.core.config import settings
 
 
 def count_csv_rows(csv_bytes: bytes) -> int:
@@ -31,40 +26,12 @@ def count_csv_rows(csv_bytes: bytes) -> int:
     return max(0, len(rows) - 1)
 
 
-async def run_dummy_training(job_id: str) -> None:
-    """Phase-1 stand-in for a real training run.
-
-    Immediately marks the job "training" then "complete" with a canned
-    metrics payload, so GET /status has a real state machine to report even
-    though no model is actually fit. Replaced by a call into ml/ once real
-    training lands (build order step 3).
+def persist_uploaded_csv(job_id: str, csv_bytes: bytes) -> str:
+    """Writes an uploaded multipart CSV to disk so mlcore.train_model (which
+    takes a csv_path, not bytes) has something to read. Returns the path.
     """
-    job_manager.update(job_id, status="training")
-
-    record = job_manager.get(job_id)
-    if record is None:
-        logger.error("run_dummy_training called for unknown job_id=%s", job_id)
-        return
-
-    dummy_metrics = {
-        "model_version": "stub_v0",
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0,
-        "roc_auc": 0.0,
-        "accuracy": 0.0,
-        "positive_rate": 0.0,
-        "random_seed": 42,
-        "split": {"train": 0, "val": 0, "test": 0},
-        "trained_at": "1970-01-01T00:00:00Z",
-    }
-
-    job_manager.update(
-        job_id,
-        status="complete",
-        rows_processed=record.rows_total,
-        rows_failed=0,
-        model_version="stub_v0",
-        metrics=dummy_metrics,
-        message="Dummy training run (phase 1 skeleton) — no model was fit.",
-    )
+    uploads_dir = Path(settings.data_dir) / "uploads"
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    path = uploads_dir / f"{job_id}.csv"
+    path.write_bytes(csv_bytes)
+    return str(path)

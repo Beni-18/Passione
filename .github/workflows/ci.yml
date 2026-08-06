@@ -19,6 +19,9 @@ jobs:
         working-directory: backend
         run: pip install -r requirements.txt -r requirements-dev.txt
 
+      - name: Install mlcore (editable, docs/INTEGRATION.md Seam 1)
+        run: pip install -r ml/requirements.txt && pip install --no-deps -e ml
+
       - name: Lint
         working-directory: backend
         run: ruff check app

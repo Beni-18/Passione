@@ -42,8 +42,9 @@ Accepts either a JSON body or a multipart file upload.
 `202 Accepted`. Raises `EMPTY_DATASET` (400) if the CSV has zero data rows, `BAD_CSV` (400) if
 neither `file` nor `csv_path` is provided or the file can't be parsed.
 
-**Current build state: phase 1 skeleton. The job is real (row count, job_id) but the "training"
-behind it is a dummy background task — it writes canned metrics rather than fitting a model.**
+**Current build state: the job and row count are real (backend-counted before mlcore is ever
+called); the fit itself is mlcore's dummy `train_model()` (docs/INTEGRATION.md Seam 1), which
+reports `rows_processed: 0` and no metrics regardless of input.**
 
 ## GET /status?job_id=...
 
@@ -71,34 +72,44 @@ Grounded response:
 
 Ungrounded response (no model, unseen category, or confidence under `GROUNDING_MIN_CONFIDENCE`):
 ```json
-{ "trending_probability": null, "predicted_label": "unknown", "model_version": null,
+{ "trending_probability": null, "predicted_label": "unknown", "model_version": "dummy_v0",
   "top_features": [], "grounded": false,
-  "reason": "No trained model is loaded yet." }
+  "reason": "No trained model loaded yet (dummy pipeline stage)." }
 ```
+Note `model_version` may be non-null even when ungrounded — it identifies whatever mlcore build is
+running, not whether that build's model is ready to score anything.
 
 Missing a required field returns `VALIDATION_ERROR` (422), not a 200 with a null score.
 
-**Current build state: always returns the ungrounded shape above — no model is loaded yet.**
+**Current build state: always returns the ungrounded shape above — mlcore's `predict()` is still
+the dummy implementation (docs/INTEGRATION.md Seam 1).**
 
 ## GET /metrics
 
-Last run's held-out evaluation, read straight from `metrics_v{N}.json`:
+Last run's held-out evaluation, sourced from `mlcore.get_model_metadata()` via
+`backend/app/ml_adapter/mlcore_client.py` (docs/INTEGRATION.md Seam 1):
 
 ```json
 { "model_version": "rf_v3", "precision": 0.62, "recall": 0.48, "f1": 0.54, "roc_auc": 0.79,
   "accuracy": 0.91, "positive_rate": 0.07, "random_seed": 42,
   "split": { "train": 3500, "val": 750, "test": 750 }, "trained_at": "2026-08-06T18:55:00Z" }
 ```
+`split.val` has no source in mlcore's current metadata shape (it reports `n_train`/`n_test` but no
+validation count) — it's hardcoded to `0` until that's resolved with the ML owner.
 
-**Current build state: raises `MODEL_NOT_READY` (409) — no model is loaded yet, so there is
-nothing to report.**
+**Current build state: raises `MODEL_NOT_READY` (409) — mlcore's `get_model_metadata()` always
+reports `passed_gate: false` at this stage, so there is nothing to report.**
 
 ## GET /models
 
 ```json
 { "active": "rf_v3", "available": ["rf_v3", "rf_v2", "logreg_v1"] }
 ```
-**Current build state: `{"active": null, "available": []}` — no artifacts on disk yet.**
+Note: mlcore's frozen interface has no "list all versions" call — `available` can only ever
+contain the single currently-loaded version (or be empty), never real version history. See
+docs/INTEGRATION.md Seam 1.
+
+**Current build state: `{"active": null, "available": []}` — mlcore reports no model loaded yet.**
 
 ## POST /models/activate
 
@@ -109,8 +120,8 @@ nothing to report.**
 ```json
 { "active": "rf_v2" }
 ```
-Raises `MODEL_NOT_READY` (409) if `model_version` doesn't correspond to a discovered artifact.
-**Current build state: always raises `MODEL_NOT_READY` — no artifacts exist to activate.**
+Raises `MODEL_NOT_READY` (409) if `mlcore.load_model()` reports `loaded: false`.
+**Current build state: always raises `MODEL_NOT_READY` — mlcore's `load_model()` is still a no-op.**
 
 ## GET /
 
@@ -126,3 +137,4 @@ Service banner, not part of the versioned contract:
 | Date | Change |
 |---|---|
 | 2026-08-06 | Initial contract, mirrors CLAUDE.md section 5. Phase 1 skeleton: all endpoints live, `/predict` always ungrounded, `/metrics` and `/models/activate` always 409, `/health` always degraded. |
+| 2026-08-06 | ML integration seam changed from a `models/*.joblib` file handoff to a frozen `mlcore.api` import (docs/INTEGRATION.md Seam 1). No response field names or shapes changed — only the internal source of the (still-dummy) values, and the fact that `model_version` can now be non-null even in an ungrounded response. |

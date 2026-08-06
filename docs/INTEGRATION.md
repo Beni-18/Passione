@@ -1,10 +1,10 @@
 # INTEGRATION.md — how the pieces plug together
 
-Three people, three directories, two seams. **Neither seam is a Python import.**
+Three people, three directories, two seams. **Neither seam is a file-on-disk handoff.**
 
 ```
-frontend/  ──HTTP + JSON──▶  backend/  ──files on disk──▶  ml/
-             API_CONTRACT.md              model bundle
+frontend/  ──HTTP + JSON──▶  backend/  ──frozen Python import──▶  ml/
+             API_CONTRACT.md              mlcore.api
    (UI)          (API)                    (training)
 ```
 
@@ -12,117 +12,102 @@ frontend/  ──HTTP + JSON──▶  backend/  ──files on disk──▶  m
 |---|---|---|
 | `frontend/` | UI owner | HTTP calls described in `docs/API_CONTRACT.md` |
 | `backend/` | Backend owner | both seams |
-| `ml/` | ML owner | two files written into `models/` — nothing else |
+| `ml/` | ML owner | the six functions in `mlcore/api.py` — nothing else |
 
 ---
 
-## Seam 1 — ML → backend
+## Seam 1 — mlcore → backend (frozen import, not a file handoff)
 
-**For the ML owner. This section is the entire interface. If you satisfy it, your model works in the
-service; nothing else about your code matters to the backend.**
+**Superseded:** earlier drafts of this doc specified a `models/model_v{N}.joblib` +
+`metrics_v{N}.json` file handoff read directly off disk. **That's no longer how this works.** The
+`models/` and `data/` directories still exist for artifacts mlcore may write internally, but the
+backend does not read them directly, and there is no joblib bundle the backend loads itself.
 
-You never import backend code and the backend never imports yours. The handoff is two files.
-
-### File 1 — `models/model_v{N}.joblib`
-
-One joblib bundle, three keys:
+**For the ML owner. This section is the entire interface.** `ml/` ships an installable package,
+`mlcore`, exposing exactly six functions from `mlcore/api.py`:
 
 ```python
-import joblib
-
-joblib.dump({
-    "pipeline": fitted_sklearn_pipeline,   # .transform(pd.DataFrame) -> ndarray
-    "model":    fitted_classifier,         # .predict_proba(X) -> [[p_not_trending, p_trending]]
-    "meta": {
-        "model_version":    "rf_v3",       # string, matches the file's v{N}
-        "feature_names":    ["genre_Thriller", "upload_hour", "tag_count", ...],
-        "known_categories": {              # used by the backend for grounding
-            "genre":    ["Thriller", "Comedy", ...],
-            "language": ["en", "hi", "ta", ...],
-        },
-        "encoder_version":  "enc_v1",
-        "random_seed":      42,
-        "trained_at":       "2026-08-06T18:55:00Z",   # ISO 8601, UTC
-    },
-}, "models/model_v3.joblib")
+from mlcore.api import (
+    health_check, load_model, get_model_metadata,
+    predict, predict_batch, train_model,
+)
 ```
 
-Column 1 of `predict_proba` output is the **trending** probability. Say so if your label encoding
-differs — do not silently flip it.
+These six signatures and their return shapes are **frozen as of M0**. Everything else inside
+`mlcore` is free to change — swap algorithms, restructure internals, add helper modules — as long
+as these six keep working and returning the same shape. All six currently return dummy,
+contract-shaped, `grounded: false` / zero-row responses (build order step 1 — pipe before model).
+Internals get swapped for real implementations at M3/M4 without touching these signatures.
 
-### File 2 — `models/metrics_v{N}.json`
+You never import backend code and the backend never imports `mlcore` outside of
+`backend/app/ml_adapter/mlcore_client.py`.
 
-Written in the same run, same `N`:
+### The five rules
 
-```json
-{
-  "model_version": "rf_v3",
-  "precision": 0.62,
-  "recall": 0.48,
-  "f1": 0.54,
-  "roc_auc": 0.79,
-  "accuracy": 0.91,
-  "positive_rate": 0.07,
-  "random_seed": 42,
-  "split": { "train": 3500, "val": 750, "test": 750 },
-  "trained_at": "2026-08-06T18:55:00Z"
-}
-```
+1. **`backend/app/ml_adapter/mlcore_client.py` is the only file in `backend/` that imports
+   `mlcore`.** Routes and services never import it directly — they call the adapter, which
+   translates `mlcore`'s dicts into our Pydantic schemas (`PredictResponse`, `StatusResponse`,
+   etc.) and applies our grounding/readiness policy (`MIN_ROC_AUC`, `GROUNDING_MIN_CONFIDENCE`) on
+   top of whatever `mlcore` reports. `mlcore` doesn't know about our thresholds — a `grounded: true`
+   or `passed_gate: true` claim from `mlcore` is not the final word; the adapter's threshold check
+   is.
 
-All metrics are computed on the **held-out test split**, never on training data. `positive_rate` is
-the share of trending rows in the training set — the backend surfaces it so nobody mistakes a 91%
-accuracy on a 7% positive class for a good model.
+2. **The adapter never trusts "never raises."** Every `mlcore` call is wrapped in try/except in
+   `mlcore_client.py`. An unexpected exception becomes `grounded: false` / `status: degraded`, the
+   same shape a normal ungrounded response would produce — never a 500.
 
-### Five rules that make or break the handoff
+3. **`ml/requirements.txt` and `backend/requirements.txt` must be dependency-compatible** — same
+   interpreter, same environment (the backend's Docker image installs both, plus `mlcore` itself,
+   in one build — see `backend/Dockerfile`). Pin both. If versions conflict, that's a blocking issue
+   to raise with the backend owner immediately, not something to work around silently.
 
-1. **`pipeline.transform` receives a raw pandas DataFrame using the `/predict` field names:**
-   `title, genre, duration_minutes, upload_time, language, tags` (tags is a list of strings).
-   All feature engineering — upload-hour and day-of-week extraction, tag counting, one-hot or target
-   encoding, any TF-IDF — happens **inside** the pipeline. The backend engineers nothing and will
-   pass exactly those six fields. This is also a marked requirement: raw metadata may only reach the
-   model through the versioned pipeline.
+4. **`train_model`'s `progress_cb`** is how `POST /status` gets real row counts during a background
+   training run. The backend passes a callback that writes into `job_manager`; `mlcore` calls it
+   with `(processed, failed, total, status)` at whatever cadence it likes during the fit. The
+   backend only trusts a non-zero `total` from the callback — it keeps its own upload-time row
+   count until `mlcore` reports a real one, so the dummy stage's `progress_cb(0, 0, 0, "complete")`
+   doesn't stomp on an accurate count taken from the uploaded CSV.
 
-2. **Unseen categories must not raise.** A genre or language never seen in training will arrive.
-   Configure encoders with `handle_unknown="infrequent_if_exist"` (or `"ignore"`), and list the real
-   training categories in `meta.known_categories` so the backend can mark that prediction
-   `grounded: false` instead of quietly scoring garbage.
+5. **`predict`/`predict_batch` take our raw `/predict` field names as a dict** — no feature
+   engineering happens on the backend side; that's entirely inside `mlcore`. The dict keys are
+   exactly `title, genre, duration_minutes, upload_time, language, tags`.
 
-3. **Fix the seed and record the split.** Two runs on the same CSV with the same seed must produce
-   byte-identical metrics. This is scored with no partial credit. Seed every source of randomness:
-   `train_test_split(random_state=seed)`, the classifier's `random_state`, any sampler or shuffle.
+### The six functions, what they return, and what the backend does with each
 
-4. **Bump `N`. Never overwrite an existing artifact.** `model_v3.joblib` stays on disk when
-   `model_v4.joblib` appears, so a bad retrain can be rolled back without retraining.
+| Function | Called from | Backend behavior |
+|---|---|---|
+| `health_check() -> dict` | `GET /health` | Adapter checks `model_loaded` and `roc_auc >= MIN_ROC_AUC` before reporting `status: "ok"`. |
+| `get_model_metadata() -> dict` | `GET /metrics`, `GET /models` | Adapter re-checks `passed_gate` and `roc_auc` against `MIN_ROC_AUC` independently of mlcore's own `passed_gate` flag. `GET /models`'s `available` list can only ever contain the one currently-loaded version — there is no "list all versions" function among the six, so real version history isn't exposed through this seam. |
+| `load_model(version) -> dict` | `POST /models/activate` | If `loaded` is false, the backend returns `MODEL_NOT_READY` (409), not a 500. |
+| `predict(metadata: dict) -> dict` | `POST /predict` | Adapter re-checks `confidence >= GROUNDING_MIN_CONFIDENCE` and forces `grounded: false` if mlcore's own `grounded: true` doesn't clear it. Any non-empty `errors` list from mlcore also forces `grounded: false`. |
+| `predict_batch(items: list[dict]) -> list[dict]` | *(not currently wired to a route — no batch endpoint in the API contract yet)* | Wrapped and available in `mlcore_client.py` for when/if a batch endpoint is added. |
+| `train_model(csv_path, progress_cb, seed, algo) -> dict` | `POST /train`'s background task | Backend writes a multipart upload to disk first (`training_service.persist_uploaded_csv`) since this function takes a path, not bytes. |
 
-5. **Both files, or neither.** The backend treats a `.joblib` with no matching `metrics_v{N}.json` as
-   an incomplete artifact and will refuse to serve it. Write metrics first, model second, if you want
-   to be safe against a half-finished run being picked up.
+### Field-mapping note (why response field names don't match 1:1)
 
-### What the backend does with it
+`mlcore`'s dicts carry fields our API contract doesn't expose (`confidence`, `confidence_band`,
+`predicted_label_display`, `errors`, `unknown_fields`) and use different vocabulary in places
+(`predicted_label: "uncertain"` vs. our `"unknown"`). The adapter maps every field explicitly by
+name in `mlcore_client.py` — it does not rename our schemas to match mlcore's keys, and it does not
+forward mlcore's extra fields to the API. If `mlcore`'s shape gains something the API contract
+should surface, that's a contract change to raise explicitly, not a silent pass-through.
 
-- Discovers `models/model_v*.joblib`, picks the highest version (or the one explicitly activated via
-  `POST /models/activate`).
-- Validates `meta`, then checks `roc_auc` against a configured `MIN_ROC_AUC` floor. **A model that
-  finished `.fit()` but fails the floor is *trained*, not *ready*** — `/health` stays `degraded` and
-  `/predict` keeps returning `grounded: false`.
-- Keeps the previously loaded model live if a new artifact fails to load.
-- Never fabricates a score. No model, unseen category, or confidence below the grounding threshold
-  all produce `grounded: false` with a plain-language `reason`.
-
-### Testing your artifact against the backend
+### Testing your changes against the backend
 
 ```bash
-python ml/src/train.py --csv data/train.csv --seed 42     # writes models/model_v1.joblib + metrics_v1.json
-curl localhost:8000/health                                 # model_loaded should flip to true
-curl localhost:8000/metrics                                # should echo your metrics_v1.json
+pip install -e ./ml                                        # from repo root
+docker compose up --build                                   # backend now imports mlcore
+curl localhost:8000/health                                  # model_loaded should flip to true once mlcore reports it
+curl localhost:8000/metrics                                 # should reflect get_model_metadata()'s metrics dict
 curl -X POST localhost:8000/predict -H 'content-type: application/json' \
-     -d @tests/fixtures/predict_ok.json                    # grounded: true
+     -d @tests/fixtures/predict_ok.json                     # grounded: true once mlcore + our thresholds agree
 curl -X POST localhost:8000/predict -H 'content-type: application/json' \
-     -d @tests/fixtures/predict_unseen.json                # grounded: false, with a reason
+     -d @tests/fixtures/predict_unseen.json                 # grounded: false, with a reason
 ```
 
-If the fourth call returns `grounded: false` when it shouldn't, the usual cause is
-`meta.known_categories` missing or not matching the values your encoder actually learned.
+If a call to any of the six functions raises where you expected a normal dict, check
+`mlcore_client.py`'s logs — the adapter catches the exception and degrades gracefully, but it also
+logs it, so a real bug in `mlcore` won't be silently invisible.
 
 ---
 
@@ -146,6 +131,7 @@ If the fourth call returns `grounded: false` when it shouldn't, the usual cause 
 
 ## Escalation
 
-If either seam turns out to be wrong — the bundle format can't carry something the model needs, or
-the UI needs a shape the contract doesn't have — **raise it as a change, don't work around it.** A
-private workaround on one side of a seam is how a working system becomes an unworkable one at 7pm.
+If either seam turns out to be wrong — `mlcore`'s six-function shape can't carry something the
+model needs, or the UI needs a shape the contract doesn't have — **raise it as a change, don't work
+around it.** A private workaround on one side of a seam is how a working system becomes an
+unworkable one at 7pm.

@@ -52,8 +52,9 @@ def test_predict_missing_required_field():
 def test_predict_unseen_category_before_any_model_trained():
     # No model is trained anywhere in this test module, so this exercises
     # the "no model loaded" path rather than a real unseen-category check —
-    # that distinction only exists once a real bundle with known_categories
-    # is loaded. Both currently resolve to grounded: false.
+    # that distinction only exists once mlcore has a real model loaded and
+    # reports grounded=false for an unseen category specifically. Both
+    # currently resolve to grounded: false via the same dummy mlcore stage.
     response = client.post(
         "/predict",
         json={
@@ -86,4 +87,6 @@ def test_predict_before_any_model_trained():
     assert response.status_code == 200
     body = response.json()
     assert body["grounded"] is False
-    assert body["reason"] == "No trained model is loaded yet."
+    assert body["trending_probability"] is None
+    assert body["predicted_label"] == "unknown"
+    assert body["reason"]

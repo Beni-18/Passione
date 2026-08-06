@@ -3,7 +3,9 @@
 # gracefully to ml_adapter/stub.py until model artifacts appear in models/.
 services:
   api:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     ports:
       - "8000:8000"
     environment:

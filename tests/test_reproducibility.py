@@ -1,41 +1,21 @@
 """Two runs, same seed, identical metrics — CLAUDE.md hard requirement 3,
 zero partial credit.
 
-Phase 1: no real ml/src/train.py exists yet, so this asserts reproducibility
-of the dummy training path (services/training_service.run_dummy_training),
-which is trivially deterministic. Once the ML owner's train.py lands, this
-must be repointed at two real subprocess invocations of it on the same CSV
-and seed, comparing the written metrics_v{N}.json files byte-for-byte on
-the numeric fields — that is the actual graded assertion.
+Phase M0: mlcore.train_model is still the dummy from ml/mlcore/api.py, so
+this asserts determinism of the frozen-interface call itself (trivial at
+this stage since the dummy ignores its inputs). Once the ML owner's real
+training lands (M3/M4) inside mlcore, this must assert the same thing against
+real fitted output — two calls to mlcore.api.train_model on the same CSV and
+seed must return byte-identical metrics dicts. The assertion shape below
+does not change; only mlcore's internals do (docs/INTEGRATION.md Seam 1).
 """
 from __future__ import annotations
 
-import asyncio
-
-from app.services.job_manager import JobManager
-from app.services.training_service import run_dummy_training
+from mlcore.api import train_model
 
 
-def test_dummy_training_is_deterministic_given_same_input():
-    async def run_once() -> dict:
-        manager = JobManager()
-        record = manager.create(rows_total=10)
+def test_train_model_is_deterministic_given_same_input():
+    result_a = train_model(csv_path="data/samples/clean_50.csv", seed=42)
+    result_b = train_model(csv_path="data/samples/clean_50.csv", seed=42)
 
-        # run_dummy_training reads/writes the module-level job_manager singleton;
-        # phase 1 has no seed-dependent randomness to control, so this only
-        # proves the job lifecycle is deterministic, not a model's numeric output.
-        from app.services import training_service
-
-        original_manager = training_service.job_manager
-        training_service.job_manager = manager
-        try:
-            await run_dummy_training(record.job_id)
-        finally:
-            training_service.job_manager = original_manager
-
-        return manager.get(record.job_id).metrics
-
-    metrics_a = asyncio.run(run_once())
-    metrics_b = asyncio.run(run_once())
-
-    assert metrics_a == metrics_b
+    assert result_a == result_b

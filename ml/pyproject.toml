@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mlcore"
+version = "0.1.0"
+description = "Passioné trending-likelihood model package. Frozen interface: mlcore.api (see docs/INTEGRATION.md Seam 1)."
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.setuptools.packages.find]
+include = ["mlcore*"]

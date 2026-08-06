@@ -3,8 +3,9 @@
 Accepts either a JSON body {"csv_path": ..., "random_seed": ...} or a
 multipart file upload, counts real rows, and kicks off training as a
 background task — this route returns 202 immediately and never blocks on
-the run itself. Does NOT do any fitting itself; that's training_service.py
-(phase 1: a dummy run) and eventually ml/src/train.py.
+the run itself. Does NOT fit anything itself: the background task is
+ml_adapter/mlcore_client.run_training, which calls mlcore.train_model()
+(docs/INTEGRATION.md Seam 1).
 
 Hostile-input handling owned here: empty CSV and header-only CSV both raise
 EmptyDatasetError before a job is ever created.
@@ -17,9 +18,10 @@ from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, UploadFile
 
 from app.core.errors import BadCsvError, EmptyDatasetError
+from app.ml_adapter.mlcore_client import run_training
 from app.schemas.train import TrainAcceptedResponse
 from app.services.job_manager import job_manager
-from app.services.training_service import count_csv_rows, run_dummy_training
+from app.services.training_service import count_csv_rows, persist_uploaded_csv
 
 router = APIRouter()
 
@@ -50,6 +52,11 @@ async def post_train(
         raise EmptyDatasetError("CSV has no data rows (empty file or header-only).")
 
     record = job_manager.create(rows_total=rows_total)
-    background_tasks.add_task(run_dummy_training, record.job_id)
+
+    # mlcore.train_model() takes a csv_path, not bytes — a multipart upload
+    # is written to disk so there's a real path to hand it.
+    resolved_csv_path = csv_path if file is None else persist_uploaded_csv(record.job_id, csv_bytes)
+
+    background_tasks.add_task(run_training, record.job_id, resolved_csv_path, random_seed)
 
     return TrainAcceptedResponse(job_id=record.job_id, rows_received=rows_total, status="queued")

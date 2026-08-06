@@ -9,10 +9,11 @@ down:
 test:
 	cd backend && python -m pytest ../tests -v
 
-# Trains a model via ml/src/train.py against a CSV, writing an artifact into
-# models/. No-op stub until the ml/ side lands — see docs/INTEGRATION.md.
+# Triggers a real training run through the running API (which calls
+# mlcore.train_model() under the hood — docs/INTEGRATION.md Seam 1), rather
+# than invoking mlcore directly, so it exercises the same path the UI does.
 train:
-	python ml/src/train.py --csv data/samples/clean_50.csv --seed 42
+	curl -s -X POST http://localhost:8000/train -F "file=@data/samples/clean_50.csv" | tee /dev/stderr
 
 # Runs the full hostile-input + contract + reproducibility suite and the
 # smoke script, the pre-submission checklist from CLAUDE.md section 7.
