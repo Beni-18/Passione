@@ -1,0 +1,23 @@
+files.zip
+.DS_Store
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# env
+.env
+
+# artifacts and data
+models/*
+!models/.gitkeep
+data/*
+!data/.gitkeep
+!data/samples/
+
+# node (frontend, if tooling added later)
+node_modules/

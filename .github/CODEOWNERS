@@ -1,0 +1,5 @@
+# backend/* is mine, ml/* is Teammate A's, frontend/* is Teammate B's.
+# Fill in real GitHub usernames when the team's handles are known.
+backend/  @backend-owner
+ml/       @ml-owner
+frontend/ @ui-owner

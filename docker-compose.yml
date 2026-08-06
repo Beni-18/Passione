@@ -1,0 +1,25 @@
+# One command brings up api + ui: `docker compose up`.
+# Neither service depends on ml/ at build time — the backend degrades
+# gracefully to ml_adapter/stub.py until model artifacts appear in models/.
+services:
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      CORS_ORIGINS: '["http://localhost:8080"]'
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./models:/app/models
+      - ./data:/app/data
+    restart: unless-stopped
+
+  ui:
+    build: ./frontend
+    ports:
+      - "8080:8080"
+    depends_on:
+      - api
+    restart: unless-stopped
