@@ -49,12 +49,13 @@ def test_predict_missing_required_field():
     _assert_error_envelope(response, 422, "VALIDATION_ERROR")
 
 
-def test_predict_unseen_category_before_any_model_trained():
-    # No model is trained anywhere in this test module, so this exercises
-    # the "no model loaded" path rather than a real unseen-category check —
-    # that distinction only exists once mlcore has a real model loaded and
-    # reports grounded=false for an unseen category specifically. Both
-    # currently resolve to grounded: false via the same dummy mlcore stage.
+def test_predict_with_unseen_category_before_any_model_trained():
+    # No model is trained anywhere in this test module, so the MIN_ROC_AUC
+    # readiness gate in ml_adapter/mlcore_client.py rejects this before
+    # mlcore.predict() is ever called — it's indistinguishable from any
+    # other "no model loaded" case at this stage. A real unseen-category
+    # grounded:false response (once a model IS loaded) is covered by
+    # tests/test_grounding_ownership.py via a monkeypatched mlcore.
     response = client.post(
         "/predict",
         json={
@@ -66,10 +67,7 @@ def test_predict_unseen_category_before_any_model_trained():
             "tags": ["dance"],
         },
     )
-    assert response.status_code == 200
-    body = response.json()
-    assert body["grounded"] is False
-    assert body["reason"]
+    _assert_error_envelope(response, 409, "MODEL_NOT_READY")
 
 
 def test_predict_before_any_model_trained():
@@ -84,9 +82,4 @@ def test_predict_before_any_model_trained():
             "tags": [],
         },
     )
-    assert response.status_code == 200
-    body = response.json()
-    assert body["grounded"] is False
-    assert body["trending_probability"] is None
-    assert body["predicted_label"] == "unknown"
-    assert body["reason"]
+    _assert_error_envelope(response, 409, "MODEL_NOT_READY")

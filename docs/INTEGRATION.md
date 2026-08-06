@@ -47,10 +47,12 @@ You never import backend code and the backend never imports `mlcore` outside of
 1. **`backend/app/ml_adapter/mlcore_client.py` is the only file in `backend/` that imports
    `mlcore`.** Routes and services never import it directly — they call the adapter, which
    translates `mlcore`'s dicts into our Pydantic schemas (`PredictResponse`, `StatusResponse`,
-   etc.) and applies our grounding/readiness policy (`MIN_ROC_AUC`, `GROUNDING_MIN_CONFIDENCE`) on
-   top of whatever `mlcore` reports. `mlcore` doesn't know about our thresholds — a `grounded: true`
-   or `passed_gate: true` claim from `mlcore` is not the final word; the adapter's threshold check
-   is.
+   etc.). The ownership split is strict: **mlcore owns prediction semantics** — `grounded`,
+   `predicted_label`, `reason` pass through from `predict()` unmodified, no backend recomputation,
+   no confidence threshold on our side. **The backend owns service readiness only**, via
+   `MIN_ROC_AUC` — it gates `/health`'s status and gates whether `/predict` is attempted at all. If
+   the service isn't ready, the backend returns `MODEL_NOT_READY` (409) before calling
+   `mlcore.predict()`, rather than calling it and second-guessing the result.
 
 2. **The adapter never trusts "never raises."** Every `mlcore` call is wrapped in try/except in
    `mlcore_client.py`. An unexpected exception becomes `grounded: false` / `status: degraded`, the
@@ -79,7 +81,7 @@ You never import backend code and the backend never imports `mlcore` outside of
 | `health_check() -> dict` | `GET /health` | Adapter checks `model_loaded` and `roc_auc >= MIN_ROC_AUC` before reporting `status: "ok"`. |
 | `get_model_metadata() -> dict` | `GET /metrics`, `GET /models` | Adapter re-checks `passed_gate` and `roc_auc` against `MIN_ROC_AUC` independently of mlcore's own `passed_gate` flag. `GET /models`'s `available` list can only ever contain the one currently-loaded version — there is no "list all versions" function among the six, so real version history isn't exposed through this seam. |
 | `load_model(version) -> dict` | `POST /models/activate` | If `loaded` is false, the backend returns `MODEL_NOT_READY` (409), not a 500. |
-| `predict(metadata: dict) -> dict` | `POST /predict` | Adapter re-checks `confidence >= GROUNDING_MIN_CONFIDENCE` and forces `grounded: false` if mlcore's own `grounded: true` doesn't clear it. Any non-empty `errors` list from mlcore also forces `grounded: false`. |
+| `predict(metadata: dict) -> dict` | `POST /predict` | Called only if the same `MIN_ROC_AUC` readiness check `/health` uses passes first — otherwise the backend raises `MODEL_NOT_READY` (409) without calling this. Once called, `grounded`/`predicted_label`/`reason` pass through unmodified; the backend does not re-check confidence or apply its own threshold. |
 | `predict_batch(items: list[dict]) -> list[dict]` | *(not currently wired to a route — no batch endpoint in the API contract yet)* | Wrapped and available in `mlcore_client.py` for when/if a batch endpoint is added. |
 | `train_model(csv_path, progress_cb, seed, algo) -> dict` | `POST /train`'s background task | Backend writes a multipart upload to disk first (`training_service.persist_uploaded_csv`) since this function takes a path, not bytes. |
 
@@ -100,9 +102,9 @@ docker compose up --build                                   # backend now import
 curl localhost:8000/health                                  # model_loaded should flip to true once mlcore reports it
 curl localhost:8000/metrics                                 # should reflect get_model_metadata()'s metrics dict
 curl -X POST localhost:8000/predict -H 'content-type: application/json' \
-     -d @tests/fixtures/predict_ok.json                     # grounded: true once mlcore + our thresholds agree
+     -d @tests/fixtures/predict_ok.json                     # grounded: true once mlcore reports it (409 until the service is ready)
 curl -X POST localhost:8000/predict -H 'content-type: application/json' \
-     -d @tests/fixtures/predict_unseen.json                 # grounded: false, with a reason
+     -d @tests/fixtures/predict_unseen.json                 # grounded: false, with mlcore's own reason
 ```
 
 If a call to any of the six functions raises where you expected a normal dict, check

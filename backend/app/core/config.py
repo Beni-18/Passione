@@ -28,11 +28,10 @@ class Settings(BaseSettings):
 
     # Readiness gate: /health is only "ok" once the active model's roc_auc
     # clears this bar. Below it the model is "trained" but not "ready".
+    # Also gates whether /predict is attempted at all — see
+    # ml_adapter/mlcore_client.py. Grounding itself (whether a specific
+    # prediction is trustworthy) is mlcore's call, not a backend threshold.
     min_roc_auc: float = 0.65
-
-    # Grounding gate: predictions with confidence under this are marked
-    # grounded: false even when the category was seen during training.
-    grounding_min_confidence: float = 0.60
 
     # Enrichment (TMDB). Optional and always fallback-safe — see enrichment.py.
     tmdb_api_key: str | None = None
