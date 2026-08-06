@@ -34,10 +34,13 @@ class Settings(BaseSettings):
     min_roc_auc: float = 0.65
 
     # Enrichment (TMDB). Optional and always fallback-safe — see enrichment.py.
+    # tmdb_api_key/tmdb_base_url are provider-specific; the timeout/retry/
+    # enabled knobs are enrichment-feature-level, not TMDB-specific, hence
+    # the different prefix.
     tmdb_api_key: str | None = None
     tmdb_base_url: str = "https://api.themoviedb.org/3"
-    tmdb_timeout_seconds: float = 3.0
-    tmdb_max_retries: int = 2
+    enrichment_timeout_seconds: float = 3.0
+    enrichment_max_retries: int = 2
     enrichment_enabled: bool = False
 
 
