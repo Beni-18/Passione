@@ -2,8 +2,8 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { RefreshCw, CheckCircle, AlertTriangle, Cpu, TrendingUp, Info } from 'lucide-react';
 
-export default function PredictionResult({ prediction, payload, onReset }) {
-  const isGrounded = prediction?.grounded;
+export default function PredictionResult({ prediction, error, payload, onReset }) {
+  const isGrounded = prediction?.grounded && !error;
   const scorePercent = isGrounded ? Math.round(prediction.trending_probability * 100) : null;
   const predictedLabel = prediction?.predicted_label;
   const topFeatures = prediction?.top_features || [];
@@ -138,15 +138,21 @@ export default function PredictionResult({ prediction, payload, onReset }) {
             </div>
           ) : (
             // Reason details
-            <div className="space-y-4 bg-amber-500/5 border border-amber-500/25 rounded-2xl p-5">
-              <h4 className="text-xs font-bold text-amber-500 uppercase tracking-wider flex items-center font-mono">
+            <div className={`space-y-4 rounded-2xl p-5 border ${
+              error === "No trained model is currently available"
+                ? "bg-rose-500/5 border-rose-500/25 text-rose-400"
+                : "bg-amber-500/5 border-amber-500/25 text-amber-500"
+            }`}>
+              <h4 className="text-xs font-bold uppercase tracking-wider flex items-center font-mono">
                 <AlertTriangle className="w-4 h-4 mr-2" /> Warning Code
               </h4>
               <p className="text-xs text-white/70 leading-relaxed font-sans font-light">
-                This film configuration contains attributes that have never been seen in the historical dataset, or metadata is insufficient to construct a safe prediction.
+                {error === "No trained model is currently available"
+                  ? "The prediction engine requires an active model artifact on disk to perform classification tasks."
+                  : "This film configuration contains attributes that have never been seen in the historical dataset, or metadata is insufficient to construct a safe prediction."}
               </p>
-              <div className="bg-black/30 border border-amber-500/10 p-3 rounded-lg font-mono text-[10px] text-amber-500/90 leading-relaxed">
-                REASON: {prediction?.reason || 'Calculated confidence levels fall below model grounding filters.'}
+              <div className="bg-black/30 border border-white/5 p-3 rounded-lg font-mono text-[10px] text-white/80 leading-relaxed">
+                REASON: {error || prediction?.reason || 'Calculated confidence levels fall below model grounding filters.'}
               </div>
             </div>
           )}

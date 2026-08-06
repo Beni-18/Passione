@@ -1,0 +1,10 @@
+{
+  "n_test": 6361,
+  "n_train": 25440,
+  "seed": 42,
+  "source_file": "/Users/abdul/Desktop/Passione/ml/data/raw/movies_train.csv",
+  "source_file_sha256": "868ea9ae0989fda89a277866708b309db88516a3d5ff85f2a3baf40ff3bcc138",
+  "test_ids_sha256": "e412ce5b90c7630fdc8e171c8f2ef4ca3451ad27c0275d140252e647919c7273",
+  "test_size": 0.2,
+  "train_ids_sha256": "ca35682457dfb85b09e0851dc939f0f646a518cbec9e88dd33b38552fa334d9d"
+}

@@ -27,7 +27,13 @@ export default function PipelineVisualizer({ payload, apiEndpoint, onPredictionC
         });
 
         if (!res.ok) {
-          const errJson = await res.json();
+          if (res.status === 409) {
+            throw new Error("No trained model is currently available");
+          }
+          const errJson = await res.json().catch(() => ({}));
+          if (errJson?.error?.code === "MODEL_NOT_READY") {
+            throw new Error("No trained model is currently available");
+          }
           throw new Error(errJson?.error?.message || `HTTP error ${res.status}`);
         }
 

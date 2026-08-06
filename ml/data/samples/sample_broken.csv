@@ -1,0 +1,12 @@
+id,title,genres,runtime,release_date,original_language,keywords,popularity
+900001.0,Valid Movie One,"['Action', 'Thriller']",95.0,2015-06-12,en,"['heist', 'chase']",4.2
+,No Id Movie,['Comedy'],90.0,2010-01-01,en,['funny'],1.1
+900003.0,Malformed Genres,['Comedy',88.0,2012-03-03,fr,['x'],0.9
+900004.0,No Genres Listed,[],100.0,2018-09-09,de,['drama'],2.0
+900005.0,No Popularity,['Drama'],105.0,2016-04-04,en,['sad'],
+900006.0,,['Horror'],80.0,2019-10-10,en,['scary'],3.3
+900007.0,Negative Runtime,['Sci-Fi'],-15.0,2017-07-07,ja,['space'],1.7
+900008.0,No Keywords,['Family'],92.0,2014-02-02,en,[],0.5
+900009.0,Bad Keywords Type,['Action'],99.0,2013-05-05,en,'just a string',1.2
+900010.0,Missing Runtime And Date,['Mystery'],,,en,['clue'],2.8
+900011.0,Unusual Language Movie,['Drama'],110.0,2011-11-11,xx,['rare'],1.9

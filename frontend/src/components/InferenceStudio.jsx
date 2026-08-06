@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileSpreadsheet, Keyboard, ArrowLeft, Cpu } from 'lucide-react';
+import { Cpu } from 'lucide-react';
 import CSVUploader from './CSVUploader';
 import ManualBuilder from './ManualBuilder';
 import ReadinessPanel from './ReadinessPanel';
 import PipelineVisualizer from './PipelineVisualizer';
 import PredictionResult from './PredictionResult';
+import DatasetUpload from './training/DatasetUpload';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -25,8 +26,17 @@ const DEFAULT_FORM = {
   teaser_released: false
 };
 
-export default function InferenceStudio() {
-  const [inputMode, setInputMode] = useState('select'); // 'select' | 'csv' | 'manual'
+export default function InferenceStudio({
+  isInteractive,
+  headerOpacity,
+  springHeaderY,
+  leftOpacity,
+  springLeftX,
+  rightOpacity,
+  springRightX,
+  bottomOpacity,
+  springBottomY
+}) {
   const [formData, setFormData] = useState({ ...DEFAULT_FORM });
   const [studioState, setStudioState] = useState('input'); // 'input' | 'pipeline' | 'result'
   const [prediction, setPrediction] = useState(null);
@@ -79,7 +89,6 @@ export default function InferenceStudio() {
     setPrediction(null);
     setError(null);
     setStudioState('input');
-    setInputMode('select');
     setFormData({ ...DEFAULT_FORM });
   };
 
@@ -101,7 +110,7 @@ export default function InferenceStudio() {
   };
 
   return (
-    <div className="w-full min-h-screen text-white flex flex-col justify-center px-4 py-8 relative">
+    <div className="w-full text-white flex flex-col justify-center max-w-6xl mx-auto px-4 select-none relative pointer-events-auto">
       
       <AnimatePresence mode="wait">
         {studioState === 'pipeline' && (
@@ -110,7 +119,7 @@ export default function InferenceStudio() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="flex items-center justify-center py-20"
+            className="flex items-center justify-center py-10"
           >
             <PipelineVisualizer
               payload={getPayload()}
@@ -127,9 +136,11 @@ export default function InferenceStudio() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
+            className="py-6"
           >
             <PredictionResult
               prediction={prediction}
+              error={error}
               payload={getPayload()}
               onReset={handleResetStudio}
             />
@@ -142,133 +153,96 @@ export default function InferenceStudio() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="w-full max-w-6xl mx-auto"
+            className="w-full space-y-6 md:space-y-8"
           >
-            {inputMode === 'select' ? (
-              // Inception selection cards
-              <div className="space-y-8 py-8">
-                <div className="text-center max-w-lg mx-auto mb-10 pointer-events-none">
-                  <span className="text-[10px] uppercase tracking-[0.3em] text-accent-blue/80 font-bold block mb-2">INTEGRATION HUB</span>
-                  <h2 className="text-3xl md:text-5xl font-extrabold tracking-tighter text-white uppercase leading-none">
-                    Inference Studio
-                  </h2>
-                  <p className="text-white/40 text-xs md:text-sm font-sans mt-2.5">
-                    Choose your workspace input method to evaluate trending likelihood index scores.
-                  </p>
+            {/* Top Workspace Header Panel */}
+            <motion.div 
+              style={{ opacity: headerOpacity, y: springHeaderY }}
+              className="flex items-center justify-between pb-4 border-b border-white/5"
+            >
+              <div>
+                <span className="text-[9px] uppercase tracking-[0.25em] text-accent-blue/80 font-bold block mb-1">INFERENCE PIPELINE</span>
+                <h2 className="text-xl md:text-2xl font-black text-white uppercase tracking-tight">
+                  Inference Studio
+                </h2>
+              </div>
+              
+              {/* Settle box for confidence percentage */}
+              <div className="flex items-center space-x-4">
+                <div className="hidden sm:flex items-center space-x-2 text-[10px] font-mono text-white/40 bg-white/5 border border-white/5 px-3 py-1.5 rounded-lg">
+                  <Cpu className="w-3.5 h-3.5 text-accent-blue" />
+                  <span>DECK: READY</span>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-                  {/* Upload CSV Card */}
-                  <motion.div
-                    whileHover={{ scale: 1.02, y: -4 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setInputMode('csv')}
-                    className="glass-panel hover:border-accent-blue/30 rounded-3xl p-8 cursor-pointer flex flex-col justify-between items-start text-left h-[300px] relative overflow-hidden group transition-colors duration-300"
-                  >
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-accent-blue/5 rounded-full filter blur-2xl pointer-events-none -z-10 group-hover:bg-accent-blue/10 transition-colors" />
-                    
-                    <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-white/50 group-hover:text-accent-blue group-hover:border-accent-blue/20 transition-all duration-300">
-                      <FileSpreadsheet className="w-8 h-8" />
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-bold text-white uppercase tracking-wider group-hover:text-accent-blue transition-colors">
-                        Upload Inference CSV
-                      </h3>
-                      <p className="text-xs text-white/40 font-sans mt-2 leading-relaxed">
-                        Parse bulk film records or pre-arranged metrics directly from local spreadsheet layouts.
-                      </p>
-                      <ul className="text-[10px] font-mono text-white/30 space-y-1 mt-4">
-                        <li>• Local CSV parsing</li>
-                        <li>• Validation check integration</li>
-                        <li>• Synchronous API inference run</li>
-                      </ul>
-                    </div>
-                  </motion.div>
-
-                  {/* Manual Builder Card */}
-                  <motion.div
-                    whileHover={{ scale: 1.02, y: -4 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setInputMode('manual')}
-                    className="glass-panel hover:border-accent-violet/30 rounded-3xl p-8 cursor-pointer flex flex-col justify-between items-start text-left h-[300px] relative overflow-hidden group transition-colors duration-300"
-                  >
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-accent-violet/5 rounded-full filter blur-2xl pointer-events-none -z-10 group-hover:bg-accent-violet/10 transition-colors" />
-
-                    <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-white/50 group-hover:text-accent-violet group-hover:border-accent-violet/20 transition-all duration-300">
-                      <Keyboard className="w-8 h-8" />
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-bold text-white uppercase tracking-wider group-hover:text-accent-violet transition-colors">
-                        Build Metadata Manual
-                      </h3>
-                      <p className="text-xs text-white/40 font-sans mt-2 leading-relaxed">
-                        Manually configure narrative paces, marketing campaign weights, casting status and regional targets.
-                      </p>
-                      <ul className="text-[10px] font-mono text-white/30 space-y-1 mt-4">
-                        <li>• 4 distinct attribute blocks</li>
-                        <li>• Real-time completeness metrics</li>
-                        <li>• Custom feature weight overrides</li>
-                      </ul>
-                    </div>
-                  </motion.div>
+                <div className="w-24 h-[34px] border border-white/5 bg-white/5 rounded-lg flex items-center justify-center font-mono text-[9px] text-white/20 uppercase tracking-wider relative">
+                  {/* Empty anchor container for target percentage number */}
+                  CONFIDENCE
                 </div>
               </div>
-            ) : (
-              // Two-panel layout once method is chosen
-              <div className="space-y-6">
-                {/* Back Link */}
-                <button
-                  onClick={() => setInputMode('select')}
-                  className="flex items-center text-[10px] uppercase font-mono tracking-widest text-white/40 hover:text-white transition-colors cursor-pointer"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5 mr-2" />
-                  Back to selection
-                </button>
+            </motion.div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                  {/* Left Column: Form / Uploader (60% width equivalent) */}
-                  <div className="lg:col-span-7">
-                    <AnimatePresence mode="wait">
-                      {inputMode === 'csv' ? (
-                        <motion.div
-                          key="csv"
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: 10 }}
-                        >
-                          <CSVUploader 
-                            onUploadSuccess={handleCSVUploadSuccess}
-                            onReset={handleResetForm}
-                          />
-                        </motion.div>
-                      ) : (
-                        <motion.div
-                          key="manual"
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: 10 }}
-                        >
-                          <ManualBuilder 
-                            formData={formData}
-                            onChange={handleInputChange}
-                          />
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  {/* Right Column: AI Readiness (40% width equivalent) */}
-                  <div className="lg:col-span-5 h-full">
-                    <ReadinessPanel 
-                      formData={formData}
-                      onPredictClick={startInference}
+            {/* Assembled Columns (CSV on Left, Accordion Builder on Right) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+              
+              {/* Left Panel: CSV Import (5 Columns) */}
+              <motion.div 
+                style={{ opacity: leftOpacity, x: springLeftX }}
+                className="lg:col-span-5 flex flex-col space-y-6"
+              >
+                <div className="glass-panel border border-white/5 rounded-2xl p-5 md:p-6 flex-1 flex flex-col justify-between space-y-6">
+                  <div>
+                    <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2 font-mono">
+                      01 / Source Import
+                    </h3>
+                    <p className="text-[11px] text-white/35 font-sans leading-relaxed mb-6">
+                      Upload local CSV film records. Populated fields instantly sync with the manual override tuner deck on the right.
+                    </p>
+                    <CSVUploader 
+                      onUploadSuccess={handleCSVUploadSuccess}
+                      onReset={handleResetForm}
                     />
                   </div>
+                  
+                  {/* Optional instruction panel */}
+                  <div className="bg-white/[0.01] border border-white/5 rounded-xl p-4 font-sans text-[10px] text-white/45 leading-relaxed">
+                    <strong>Developer Tip:</strong> Drag in a file to pre-fill parameters, then expand the categories on the right to manually tweak variables before running the model.
+                  </div>
                 </div>
-              </div>
-            )}
+
+                <DatasetUpload />
+              </motion.div>
+
+              {/* Right Panel: Accordion builder (7 Columns) */}
+              <motion.div 
+                style={{ opacity: rightOpacity, x: springRightX }}
+                className="lg:col-span-7"
+              >
+                <div className="glass-panel border border-white/5 rounded-2xl p-5 md:p-6">
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2 font-mono">
+                    02 / Parameter Tuning
+                  </h3>
+                  <p className="text-[11px] text-white/35 font-sans leading-relaxed mb-6">
+                    Tweak and adjust features manually. Completion scores update as parameters are resolved.
+                  </p>
+                  <ManualBuilder 
+                    formData={formData}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              </motion.div>
+
+            </div>
+
+            {/* Bottom Panel: AI Readiness and Predict CTA */}
+            <motion.div
+              style={{ opacity: bottomOpacity, y: springBottomY }}
+              className="w-full"
+            >
+              <ReadinessPanel 
+                formData={formData}
+                onPredictClick={startInference}
+              />
+            </motion.div>
+
           </motion.div>
         )}
       </AnimatePresence>
