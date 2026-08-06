@@ -1,0 +1,6 @@
+{
+  "model_version": "rf_v1",
+  "path": "/Users/abdul/Desktop/Passione/ml/artifacts/rf_v1",
+  "promoted_at": "2026-08-06T14:01:58.594117+00:00",
+  "roc_auc": 0.8578052146814678
+}

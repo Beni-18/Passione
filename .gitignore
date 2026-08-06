@@ -21,3 +21,10 @@ data/*
 
 # node (frontend, if tooling added later)
 node_modules/
+
+# ml/ additions (raw dataset is 151MB and reproducible via
+# `python3 ml/scripts/get_data.py`; Kaggle credentials must never be committed)
+ml/data/raw/*.csv
+ml/data/processed/*.csv
+kaggle.json
+.kaggle/
