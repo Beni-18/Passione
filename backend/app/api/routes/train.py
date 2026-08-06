@@ -1,21 +1,31 @@
 """POST /train
 
-Accepts either a JSON body {"csv_path": ..., "random_seed": ...} or a
-multipart file upload, counts real rows, and kicks off training as a
-background task — this route returns 202 immediately and never blocks on
-the run itself. Does NOT fit anything itself: the background task is
+Multipart only: a required `file` upload plus an explicit `random_seed`
+Form field. Counts real rows, then kicks off training as a background task
+— this route returns 202 immediately and never blocks on the run itself.
+Does NOT fit anything itself: the background task is
 ml_adapter/mlcore_client.run_training, which calls mlcore.train_model()
 (docs/INTEGRATION.md Seam 1).
 
+There is deliberately no JSON-body / server-local-path ingestion mode. An
+earlier version accepted a bare `csv_path: str` function parameter intending
+it as a second, JSON-body mode — FastAPI actually bound it (and
+`random_seed`) as query parameters instead, silently breaking both the
+documented JSON mode and the documented multipart-form-field mode (the
+latter parsed successfully but silently ignored whatever seed was sent,
+always using the 42 default). `random_seed: int = Form(...)` below is what
+actually makes it bind correctly; do not go back to a bare function
+parameter for it.
+
 Hostile-input handling owned here: empty CSV and header-only CSV both raise
-EmptyDatasetError before a job is ever created.
+EmptyDatasetError before a job is ever created. A missing `file` is a 422
+VALIDATION_ERROR, handled automatically by FastAPI since `file` is required.
 """
 from __future__ import annotations
 
 import csv
-from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, UploadFile
 
 from app.core.errors import BadCsvError, EmptyDatasetError
 from app.ml_adapter.mlcore_client import run_training
@@ -29,19 +39,10 @@ router = APIRouter()
 @router.post("/train", response_model=TrainAcceptedResponse, status_code=202)
 async def post_train(
     background_tasks: BackgroundTasks,
-    file: UploadFile | None = None,
-    csv_path: str | None = None,
-    random_seed: int = 42,
+    file: UploadFile = File(...),
+    random_seed: int = Form(42),
 ) -> TrainAcceptedResponse:
-    if file is not None:
-        csv_bytes = await file.read()
-    elif csv_path is not None:
-        path = Path(csv_path)
-        if not path.is_file():
-            raise BadCsvError(f"csv_path does not exist: {csv_path}")
-        csv_bytes = path.read_bytes()
-    else:
-        raise BadCsvError("Provide either a multipart 'file' or a JSON 'csv_path'.")
+    csv_bytes = await file.read()
 
     try:
         rows_total = count_csv_rows(csv_bytes)
@@ -53,9 +54,9 @@ async def post_train(
 
     record = job_manager.create(rows_total=rows_total)
 
-    # mlcore.train_model() takes a csv_path, not bytes — a multipart upload
-    # is written to disk so there's a real path to hand it.
-    resolved_csv_path = csv_path if file is None else persist_uploaded_csv(record.job_id, csv_bytes)
+    # mlcore.train_model() takes a csv_path, not bytes — the upload is
+    # written to disk so there's a real path to hand it.
+    resolved_csv_path = persist_uploaded_csv(record.job_id, csv_bytes)
 
     background_tasks.add_task(run_training, record.job_id, resolved_csv_path, random_seed)
 

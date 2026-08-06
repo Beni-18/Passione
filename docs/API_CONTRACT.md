@@ -17,7 +17,7 @@ Every non-2xx response uses this shape:
 | `MODEL_NOT_READY` | 409 | `GET /metrics`, `POST /predict`, `POST /models/activate` when no model is loaded and ready |
 | `JOB_NOT_FOUND` | 404 | `GET /status` with an unknown `job_id` |
 | `EMPTY_DATASET` | 400 | `POST /train` with zero data rows (empty or header-only CSV) |
-| `BAD_CSV` | 400 | `POST /train` with an unparseable file or missing `file`/`csv_path` |
+| `BAD_CSV` | 400 | `POST /train` with an unparseable file |
 
 ## GET /health
 
@@ -31,16 +31,29 @@ otherwise `"degraded"`. **Current build state: no model exists yet, so this alwa
 
 ## POST /train
 
-Accepts either a JSON body or a multipart file upload.
+Multipart only — no JSON-body mode:
 
-- JSON: `{"csv_path": "...", "random_seed": 42}`
-- Multipart: `file=<csv>` (optional `random_seed` form field, default `42`)
+- `file` — required, the training CSV.
+- `random_seed` — optional form field, integer, default `42`.
 
+```bash
+curl -X POST localhost:8000/train -F "file=@data.csv" -F "random_seed=42"
+```
 ```json
 { "job_id": "t3f1a2c9", "rows_received": 5000, "status": "queued" }
 ```
-`202 Accepted`. Raises `EMPTY_DATASET` (400) if the CSV has zero data rows, `BAD_CSV` (400) if
-neither `file` nor `csv_path` is provided or the file can't be parsed.
+`202 Accepted`. Raises `VALIDATION_ERROR` (422) if `file` is missing, `EMPTY_DATASET` (400) if the
+CSV has zero data rows, `BAD_CSV` (400) if the file can't be parsed as CSV.
+
+There is deliberately no way to reference a server-local CSV by path. An earlier draft of this
+contract documented a JSON `{"csv_path": ..., "random_seed": 42}` mode; it never worked as
+specified (`csv_path` and `random_seed` were bound as query parameters by FastAPI's default
+inference, not JSON body fields — sending the documented JSON body was silently ignored and
+returned `BAD_CSV`). Rather than fix the binding to support two ingestion modes, we dropped the
+path-based mode entirely: no real UI would ever have a server-local path to send, and nothing in
+this repo used it. `random_seed` is now bound with an explicit `Form(...)` in
+`backend/app/api/routes/train.py` — sending it used to be silently ignored (always defaulting to
+`42`) for exactly the same underlying reason; it now actually reaches the training run.
 
 **Current build state: the job and row count are real (backend-counted before mlcore is ever
 called); the fit itself is mlcore's dummy `train_model()` (docs/INTEGRATION.md Seam 1), which
@@ -148,3 +161,4 @@ Service banner, not part of the versioned contract:
 | 2026-08-06 | Initial contract, mirrors CLAUDE.md section 5. Phase 1 skeleton: all endpoints live, `/predict` always ungrounded, `/metrics` and `/models/activate` always 409, `/health` always degraded. |
 | 2026-08-06 | ML integration seam changed from a `models/*.joblib` file handoff to a frozen `mlcore.api` import (docs/INTEGRATION.md Seam 1). No response field names or shapes changed — only the internal source of the (still-dummy) values, and the fact that `model_version` can now be non-null even in an ungrounded response. |
 | 2026-08-06 | **Breaking (build-window only, dummy stage):** `POST /predict` now raises `MODEL_NOT_READY` (409) instead of returning a 200 ungrounded response when the service isn't ready — the readiness check happens before mlcore is called, rather than after. `GROUNDING_MIN_CONFIDENCE` removed; the backend no longer second-guesses mlcore's own `grounded` decision once the service is ready. |
+| 2026-08-06 | **Bug fix, not a contract change:** `POST /train`'s documented JSON-body mode never actually worked (`csv_path`/`random_seed` were bound as query params, not body/form fields — see the note under POST /train). Removed the JSON mode from the docs since it never functioned; multipart is now the only documented mode, with `random_seed` fixed to bind correctly via `Form(...)`. |

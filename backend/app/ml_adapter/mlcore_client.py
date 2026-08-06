@@ -192,33 +192,65 @@ def get_health_response(enrichment_api_connected: bool) -> HealthResponse:
     )
 
 
-def get_metrics_response() -> MetricsResponse | None:
-    """Returns None if no model is ready — callers raise ModelNotReadyError."""
-    raw = _safe_get_model_metadata()
+def _build_split(raw: dict, metrics: dict) -> SplitCounts:
+    """`get_model_metadata()` reports n_train/n_test at the top level with no
+    validation count; a future `train_model()` metrics dict might instead
+    carry a nested `split` object. Both are accepted; whichever is present
+    wins. Neither source has a validation count today, so `val` defaults to
+    0 either way — flagged rather than silently guessed, revisit once
+    mlcore's metrics shape is finalized at M3/M4.
+    """
+    nested = metrics.get("split")
+    if isinstance(nested, dict):
+        return SplitCounts(train=nested.get("train", 0), val=nested.get("val", 0), test=nested.get("test", 0))
+    return SplitCounts(train=raw.get("n_train") or 0, val=0, test=raw.get("n_test") or 0)
+
+
+def _build_metrics_response(raw: dict) -> MetricsResponse | None:
+    """Maps a raw mlcore dict into a MetricsResponse, field by field, with
+    explicit defaults for anything absent — never a raw `**dict` unpack.
+
+    Shared by get_metrics_response() (source: get_model_metadata()'s dict)
+    and run_training() (source: train_model()'s dict) — the two mlcore
+    calls don't return the same shape at the top level, so every field here
+    is looked up in the nested `metrics` sub-dict first, falling back to the
+    outer dict, rather than assuming one fixed layout.
+
+    Returns None if there isn't enough to build a valid response (no
+    model_version or no roc_auc) — callers decide what that means for them.
+    Does NOT apply MIN_ROC_AUC or any other readiness gating; that's the
+    caller's job, since /metrics gates on it and /status does not.
+    """
     metrics = raw.get("metrics") or {}
+    model_version = metrics.get("model_version") or raw.get("model_version")
     roc_auc = metrics.get("roc_auc")
-
-    if not raw.get("passed_gate") or roc_auc is None or roc_auc < settings.min_roc_auc:
-        return None
-    if raw.get("model_version") is None:
+    if model_version is None or roc_auc is None:
         return None
 
-    # mlcore reports n_train/n_test but no validation-split count — our
-    # schema's split.val has no mlcore source yet, so it defaults to 0.
-    # Flagged here rather than silently guessed: revisit once mlcore's
-    # metrics shape is finalized at M3/M4.
     return MetricsResponse(
-        model_version=raw["model_version"],
+        model_version=model_version,
         precision=metrics.get("precision", 0.0),
         recall=metrics.get("recall", 0.0),
         f1=metrics.get("f1", 0.0),
         roc_auc=roc_auc,
         accuracy=metrics.get("accuracy", 0.0),
-        positive_rate=raw.get("positive_rate") or 0.0,
-        random_seed=raw.get("seed") or 0,
-        split=SplitCounts(train=raw.get("n_train") or 0, val=0, test=raw.get("n_test") or 0),
-        trained_at=raw.get("trained_at") or "",
+        positive_rate=metrics.get("positive_rate") or raw.get("positive_rate") or 0.0,
+        random_seed=metrics.get("random_seed") or metrics.get("seed") or raw.get("seed") or 0,
+        split=_build_split(raw, metrics),
+        trained_at=metrics.get("trained_at") or raw.get("trained_at") or "",
     )
+
+
+def get_metrics_response() -> MetricsResponse | None:
+    """Returns None if no model is ready — callers raise ModelNotReadyError."""
+    raw = _safe_get_model_metadata()
+    if not raw.get("passed_gate"):
+        return None
+
+    metrics_response = _build_metrics_response(raw)
+    if metrics_response is None or metrics_response.roc_auc < settings.min_roc_auc:
+        return None
+    return metrics_response
 
 
 def get_models_response() -> ModelListResponse:
@@ -270,7 +302,15 @@ def get_predict_response(request: PredictRequest) -> PredictResponse:
 def run_training(job_id: str, csv_path: str, seed: int, algo: str = "logreg") -> None:
     """Runs mlcore.train_model as the /train background task, wiring
     progress_cb into job_manager so /status has real counts (Seam 1 rule 4).
-    Never raises: _safe_train_model already catches everything.
+
+    _safe_train_model() never raises (it catches mlcore itself), but this
+    function does more after that call returns: it builds a MetricsResponse
+    out of whatever mlcore.train_model() reported, and that mapping can fail
+    on genuinely malformed data (e.g. a non-numeric roc_auc). Background
+    tasks run outside FastAPI's request/response cycle, so no exception
+    handler catches that for us — the entire body below is wrapped in
+    try/except so any failure here still lands the job at status: "failed"
+    with a message, never a stuck "training" job or a silent crash.
     """
     job_manager.update(job_id, status="training")
 
@@ -283,14 +323,23 @@ def run_training(job_id: str, csv_path: str, seed: int, algo: str = "logreg") ->
             updates["rows_total"] = total
         job_manager.update(job_id, **updates)
 
-    result = _safe_train_model(csv_path=csv_path, progress_cb=progress_cb, seed=seed, algo=algo)
+    try:
+        result = _safe_train_model(csv_path=csv_path, progress_cb=progress_cb, seed=seed, algo=algo)
+        metrics_response = _build_metrics_response(result)
 
-    job_manager.update(
-        job_id,
-        status=result.get("status", "failed"),
-        rows_processed=result.get("rows_processed", 0),
-        rows_failed=result.get("rows_failed", 0),
-        model_version=result.get("model_version"),
-        metrics=result.get("metrics") or None,
-        message=result.get("detail"),
-    )
+        job_manager.update(
+            job_id,
+            status=result.get("status", "failed"),
+            rows_processed=result.get("rows_processed", 0),
+            rows_failed=result.get("rows_failed", 0),
+            model_version=result.get("model_version"),
+            metrics=metrics_response.model_dump() if metrics_response else None,
+            message=result.get("detail"),
+        )
+    except Exception as exc:
+        logger.exception("run_training(job_id=%s) failed while recording results", job_id)
+        job_manager.update(
+            job_id,
+            status="failed",
+            message=f"Training failed while recording results: {exc}",
+        )

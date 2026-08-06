@@ -230,7 +230,9 @@ Codes: `VALIDATION_ERROR` 422 · `MODEL_NOT_READY` 409 · `JOB_NOT_FOUND` 404 ·
 `status` is `"ok"` **only** when a trained model is loaded *and* its metrics cleared `MIN_ROC_AUC`.
 Otherwise `"degraded"`. A started container is not a ready service.
 
-**POST /train** — JSON `{"csv_path": "...", "random_seed": 42}` or multipart `file=<csv>`
+**POST /train** — multipart only: `file=<csv>` (required) + `random_seed` form field (default `42`).
+No JSON-body mode — see docs/API_CONTRACT.md for why an earlier `csv_path` JSON mode was dropped
+rather than fixed.
 ```json
 { "job_id": "t3f1", "rows_received": 5000, "status": "queued" }   // 202
 ```

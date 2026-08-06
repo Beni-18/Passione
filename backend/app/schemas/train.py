@@ -1,20 +1,15 @@
-"""Request/response shapes for POST /train.
+"""Response shape for POST /train.
 
 Does NOT define the background job's internal state machine — that's
-job_manager.py's JobRecord. This is only the wire shape of the 202 response
-and the JSON-body request variant (the multipart file variant has no body
-schema; FastAPI reads it as an UploadFile in the route).
+job_manager.py's JobRecord. POST /train has no JSON body: it's multipart
+only (file + a random_seed form field), read directly as route parameters
+in routes/train.py — there is deliberately no request schema class here.
 """
 from __future__ import annotations
 
 from typing import Literal
 
 from pydantic import BaseModel
-
-
-class TrainRequest(BaseModel):
-    csv_path: str
-    random_seed: int = 42
 
 
 class TrainAcceptedResponse(BaseModel):
