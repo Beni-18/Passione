@@ -1,0 +1,49 @@
+{
+ "n_videos": 19738,
+ "test_share": 0.2,
+ "seeds": [
+  0,
+  1,
+  2,
+  3,
+  4
+ ],
+ "positive_rate": 0.2500759955415949,
+ "results": [
+  {
+   "model": "1. title words (TF-IDF, v1-style metadata)",
+   "roc_auc": 0.64,
+   "roc_auc_std": 0.006,
+   "f1": 0.42,
+   "f1_std": 0.004
+  },
+  {
+   "model": "2. + title meaning (BGE-M3)",
+   "roc_auc": 0.65,
+   "roc_auc_std": 0.006,
+   "f1": 0.431,
+   "f1_std": 0.007
+  },
+  {
+   "model": "3. + cover image (CLIP)",
+   "roc_auc": 0.704,
+   "roc_auc_std": 0.007,
+   "f1": 0.481,
+   "f1_std": 0.008
+  },
+  {
+   "model": "4. + video content (VideoMAE)",
+   "roc_auc": 0.704,
+   "roc_auc_std": 0.007,
+   "f1": 0.48,
+   "f1_std": 0.008
+  },
+  {
+   "model": "video content alone (VideoMAE)",
+   "roc_auc": 0.592,
+   "roc_auc_std": 0.009,
+   "f1": 0.367,
+   "f1_std": 0.013
+  }
+ ]
+}

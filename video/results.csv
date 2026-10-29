@@ -1,0 +1,6 @@
+model,roc_auc,roc_auc_std,f1,f1_std
+"1. title words (TF-IDF, v1-style metadata)",0.64,0.006,0.42,0.004
+2. + title meaning (BGE-M3),0.65,0.006,0.431,0.007
+3. + cover image (CLIP),0.704,0.007,0.481,0.008
+4. + video content (VideoMAE),0.704,0.007,0.48,0.008
+video content alone (VideoMAE),0.592,0.009,0.367,0.013

@@ -1,0 +1,876 @@
+{
+ "n_videos": 19738,
+ "seeds": [
+  0,
+  1,
+  2,
+  3,
+  4
+ ],
+ "positive_rate": 0.2500759955415949,
+ "age_check": {
+  "age_alone_roc_auc": 0.5416371440672194,
+  "by_age_fifth": [
+   {
+    "cohort": "newest",
+    "trending_rate": 0.194,
+    "median_age_days": 15.027,
+    "median_views": 730500.0
+   },
+   {
+    "cohort": "2nd",
+    "trending_rate": 0.249,
+    "median_age_days": 34.449,
+    "median_views": 953000.0
+   },
+   {
+    "cohort": "3rd",
+    "trending_rate": 0.272,
+    "median_age_days": 57.918,
+    "median_views": 1082623.0
+   },
+   {
+    "cohort": "4th",
+    "trending_rate": 0.262,
+    "median_age_days": 81.226,
+    "median_views": 1046777.0
+   },
+   {
+    "cohort": "oldest",
+    "trending_rate": 0.274,
+    "median_age_days": 133.842,
+    "median_views": 1089000.0
+   }
+  ],
+  "labels_agree": 0.9767960279663593
+ },
+ "scores": [
+  {
+   "label": "age_adjusted",
+   "model": "boosting",
+   "features": "all",
+   "seeds": 5,
+   "roc_auc": 0.6875,
+   "roc_auc_std": 0.0067,
+   "f1": 0.4661,
+   "f1_std": 0.0061,
+   "brier": 0.216
+  },
+  {
+   "label": "age_adjusted",
+   "model": "boosting",
+   "features": "words",
+   "seeds": 5,
+   "roc_auc": 0.6063,
+   "roc_auc_std": 0.0083,
+   "f1": 0.3892,
+   "f1_std": 0.0093,
+   "brier": 0.2351
+  },
+  {
+   "label": "age_adjusted",
+   "model": "boosting",
+   "features": "words+title",
+   "seeds": 5,
+   "roc_auc": 0.6331,
+   "roc_auc_std": 0.012,
+   "f1": 0.414,
+   "f1_std": 0.0144,
+   "brier": 0.2289
+  },
+  {
+   "label": "age_adjusted",
+   "model": "boosting",
+   "features": "words+title+cover",
+   "seeds": 5,
+   "roc_auc": 0.6889,
+   "roc_auc_std": 0.0071,
+   "f1": 0.468,
+   "f1_std": 0.0065,
+   "brier": 0.2157
+  },
+  {
+   "label": "age_adjusted",
+   "model": "fusion",
+   "features": "all",
+   "seeds": 5,
+   "roc_auc": 0.6959,
+   "roc_auc_std": 0.0053,
+   "f1": 0.4706,
+   "f1_std": 0.0089,
+   "brier": 0.2163
+  },
+  {
+   "label": "age_adjusted",
+   "model": "fusion",
+   "features": "words",
+   "seeds": 5,
+   "roc_auc": 0.626,
+   "roc_auc_std": 0.0039,
+   "f1": 0.413,
+   "f1_std": 0.0061,
+   "brier": 0.2348
+  },
+  {
+   "label": "age_adjusted",
+   "model": "fusion",
+   "features": "words+title",
+   "seeds": 5,
+   "roc_auc": 0.647,
+   "roc_auc_std": 0.0057,
+   "f1": 0.4286,
+   "f1_std": 0.0092,
+   "brier": 0.2308
+  },
+  {
+   "label": "age_adjusted",
+   "model": "fusion",
+   "features": "words+title+cover",
+   "seeds": 5,
+   "roc_auc": 0.699,
+   "roc_auc_std": 0.0042,
+   "f1": 0.4763,
+   "f1_std": 0.0071,
+   "brier": 0.217
+  },
+  {
+   "label": "age_adjusted",
+   "model": "linear",
+   "features": "all",
+   "seeds": 5,
+   "roc_auc": 0.699,
+   "roc_auc_std": 0.0062,
+   "f1": 0.4752,
+   "f1_std": 0.0085,
+   "brier": 0.2148
+  },
+  {
+   "label": "age_adjusted",
+   "model": "linear",
+   "features": "words",
+   "seeds": 5,
+   "roc_auc": 0.6387,
+   "roc_auc_std": 0.0053,
+   "f1": 0.4123,
+   "f1_std": 0.0087,
+   "brier": 0.2279
+  },
+  {
+   "label": "age_adjusted",
+   "model": "linear",
+   "features": "words+title",
+   "seeds": 5,
+   "roc_auc": 0.651,
+   "roc_auc_std": 0.007,
+   "f1": 0.43,
+   "f1_std": 0.0078,
+   "brier": 0.227
+  },
+  {
+   "label": "age_adjusted",
+   "model": "linear",
+   "features": "words+title+cover",
+   "seeds": 5,
+   "roc_auc": 0.7,
+   "roc_auc_std": 0.0052,
+   "f1": 0.4773,
+   "f1_std": 0.0072,
+   "brier": 0.2152
+  },
+  {
+   "label": "raw",
+   "model": "boosting",
+   "features": "all",
+   "seeds": 5,
+   "roc_auc": 0.6937,
+   "roc_auc_std": 0.0066,
+   "f1": 0.4706,
+   "f1_std": 0.0093,
+   "brier": 0.2159
+  },
+  {
+   "label": "raw",
+   "model": "boosting",
+   "features": "cover",
+   "seeds": 5,
+   "roc_auc": 0.684,
+   "roc_auc_std": 0.0079,
+   "f1": 0.4634,
+   "f1_std": 0.0067,
+   "brier": 0.2217
+  },
+  {
+   "label": "raw",
+   "model": "boosting",
+   "features": "video",
+   "seeds": 5,
+   "roc_auc": 0.5757,
+   "roc_auc_std": 0.0077,
+   "f1": 0.3488,
+   "f1_std": 0.0108,
+   "brier": 0.24
+  },
+  {
+   "label": "raw",
+   "model": "boosting",
+   "features": "words",
+   "seeds": 5,
+   "roc_auc": 0.6078,
+   "roc_auc_std": 0.0034,
+   "f1": 0.3929,
+   "f1_std": 0.0057,
+   "brier": 0.2371
+  },
+  {
+   "label": "raw",
+   "model": "boosting",
+   "features": "words+title",
+   "seeds": 5,
+   "roc_auc": 0.6377,
+   "roc_auc_std": 0.005,
+   "f1": 0.4173,
+   "f1_std": 0.0084,
+   "brier": 0.2297
+  },
+  {
+   "label": "raw",
+   "model": "boosting",
+   "features": "words+title+cover",
+   "seeds": 5,
+   "roc_auc": 0.6935,
+   "roc_auc_std": 0.0056,
+   "f1": 0.4701,
+   "f1_std": 0.0085,
+   "brier": 0.2158
+  },
+  {
+   "label": "raw",
+   "model": "fusion",
+   "features": "all",
+   "seeds": 5,
+   "roc_auc": 0.7023,
+   "roc_auc_std": 0.0088,
+   "f1": 0.4765,
+   "f1_std": 0.0076,
+   "brier": 0.2179
+  },
+  {
+   "label": "raw",
+   "model": "fusion",
+   "features": "cover",
+   "seeds": 5,
+   "roc_auc": 0.6982,
+   "roc_auc_std": 0.007,
+   "f1": 0.4719,
+   "f1_std": 0.0074,
+   "brier": 0.218
+  },
+  {
+   "label": "raw",
+   "model": "fusion",
+   "features": "video",
+   "seeds": 5,
+   "roc_auc": 0.5927,
+   "roc_auc_std": 0.0108,
+   "f1": 0.3586,
+   "f1_std": 0.0122,
+   "brier": 0.2372
+  },
+  {
+   "label": "raw",
+   "model": "fusion",
+   "features": "words",
+   "seeds": 5,
+   "roc_auc": 0.6216,
+   "roc_auc_std": 0.0101,
+   "f1": 0.4077,
+   "f1_std": 0.0084,
+   "brier": 0.2355
+  },
+  {
+   "label": "raw",
+   "model": "fusion",
+   "features": "words+title",
+   "seeds": 5,
+   "roc_auc": 0.642,
+   "roc_auc_std": 0.0085,
+   "f1": 0.4274,
+   "f1_std": 0.0076,
+   "brier": 0.2362
+  },
+  {
+   "label": "raw",
+   "model": "fusion",
+   "features": "words+title+cover",
+   "seeds": 5,
+   "roc_auc": 0.7005,
+   "roc_auc_std": 0.006,
+   "f1": 0.4771,
+   "f1_std": 0.0062,
+   "brier": 0.2189
+  },
+  {
+   "label": "raw",
+   "model": "linear",
+   "features": "all",
+   "seeds": 5,
+   "roc_auc": 0.7041,
+   "roc_auc_std": 0.0067,
+   "f1": 0.48,
+   "f1_std": 0.0077,
+   "brier": 0.215
+  },
+  {
+   "label": "raw",
+   "model": "linear",
+   "features": "cover",
+   "seeds": 5,
+   "roc_auc": 0.6975,
+   "roc_auc_std": 0.0082,
+   "f1": 0.4795,
+   "f1_std": 0.0085,
+   "brier": 0.2216
+  },
+  {
+   "label": "raw",
+   "model": "linear",
+   "features": "video",
+   "seeds": 5,
+   "roc_auc": 0.5923,
+   "roc_auc_std": 0.0094,
+   "f1": 0.3674,
+   "f1_std": 0.013,
+   "brier": 0.2397
+  },
+  {
+   "label": "raw",
+   "model": "linear",
+   "features": "words",
+   "seeds": 5,
+   "roc_auc": 0.6404,
+   "roc_auc_std": 0.0064,
+   "f1": 0.42,
+   "f1_std": 0.0041,
+   "brier": 0.2282
+  },
+  {
+   "label": "raw",
+   "model": "linear",
+   "features": "words+title",
+   "seeds": 5,
+   "roc_auc": 0.6499,
+   "roc_auc_std": 0.0061,
+   "f1": 0.4306,
+   "f1_std": 0.0066,
+   "brier": 0.2282
+  },
+  {
+   "label": "raw",
+   "model": "linear",
+   "features": "words+title+cover",
+   "seeds": 5,
+   "roc_auc": 0.7039,
+   "roc_auc_std": 0.0071,
+   "f1": 0.481,
+   "f1_std": 0.0082,
+   "brier": 0.2158
+  }
+ ],
+ "comparisons": [
+  {
+   "label": "raw",
+   "model": "linear",
+   "question": "title meaning (BGE-M3) on top of title words",
+   "delta": 0.009430122836318278,
+   "ci95": [
+    0.0036452195929915715,
+    0.015303244011603063
+   ],
+   "seeds": 5,
+   "significant": true
+  },
+  {
+   "label": "raw",
+   "model": "linear",
+   "question": "cover image (CLIP) on top of the title",
+   "delta": 0.05399336939141634,
+   "ci95": [
+    0.048301846008029954,
+    0.05986052725763626
+   ],
+   "seeds": 5,
+   "significant": true
+  },
+  {
+   "label": "raw",
+   "model": "linear",
+   "question": "video content (VideoMAE) on top of title and cover",
+   "delta": 0.0002127283185292317,
+   "ci95": [
+    -0.0013245615954981605,
+    0.0017519189838220337
+   ],
+   "seeds": 5,
+   "significant": false
+  },
+  {
+   "label": "raw",
+   "model": "boosting",
+   "question": "title meaning (BGE-M3) on top of title words",
+   "delta": 0.029960201977275003,
+   "ci95": [
+    0.022858255215479302,
+    0.03682793612233657
+   ],
+   "seeds": 5,
+   "significant": true
+  },
+  {
+   "label": "raw",
+   "model": "boosting",
+   "question": "cover image (CLIP) on top of the title",
+   "delta": 0.05575360469624195,
+   "ci95": [
+    0.048706335125168504,
+    0.06306788686226418
+   ],
+   "seeds": 5,
+   "significant": true
+  },
+  {
+   "label": "raw",
+   "model": "boosting",
+   "question": "video content (VideoMAE) on top of title and cover",
+   "delta": 0.00024687708190263,
+   "ci95": [
+    -0.0018510114210283663,
+    0.0022604960583074386
+   ],
+   "seeds": 5,
+   "significant": false
+  },
+  {
+   "label": "raw",
+   "model": "fusion",
+   "question": "title meaning (BGE-M3) on top of title words",
+   "delta": 0.020445288924885417,
+   "ci95": [
+    0.012387915114284616,
+    0.02844161802592216
+   ],
+   "seeds": 5,
+   "significant": true
+  },
+  {
+   "label": "raw",
+   "model": "fusion",
+   "question": "cover image (CLIP) on top of the title",
+   "delta": 0.058517498846025015,
+   "ci95": [
+    0.052449231805783016,
+    0.06463612746430313
+   ],
+   "seeds": 5,
+   "significant": true
+  },
+  {
+   "label": "raw",
+   "model": "fusion",
+   "question": "video content (VideoMAE) on top of title and cover",
+   "delta": 0.0017652310156998751,
+   "ci95": [
+    -0.0007013288673586948,
+    0.0043141221709583665
+   ],
+   "seeds": 5,
+   "significant": false
+  },
+  {
+   "label": "raw",
+   "model": "boosting vs linear",
+   "question": "non-linear fusion, all inputs",
+   "delta": -0.010366134281286566,
+   "ci95": [
+    -0.014931894244623706,
+    -0.005896408435758345
+   ],
+   "seeds": 5,
+   "significant": true
+  },
+  {
+   "label": "raw",
+   "model": "fusion vs linear",
+   "question": "non-linear fusion, all inputs",
+   "delta": -0.0017974978331959158,
+   "ci95": [
+    -0.0045326429243910385,
+    0.0008195265729639215
+   ],
+   "seeds": 5,
+   "significant": false
+  },
+  {
+   "label": "age_adjusted",
+   "model": "linear",
+   "question": "title meaning (BGE-M3) on top of title words",
+   "delta": 0.012380226976359654,
+   "ci95": [
+    0.006573467071912162,
+    0.017996382971594727
+   ],
+   "seeds": 5,
+   "significant": true
+  },
+  {
+   "label": "age_adjusted",
+   "model": "linear",
+   "question": "cover image (CLIP) on top of the title",
+   "delta": 0.04896460470411192,
+   "ci95": [
+    0.04295980621546743,
+    0.05477395820519656
+   ],
+   "seeds": 5,
+   "significant": true
+  },
+  {
+   "label": "age_adjusted",
+   "model": "linear",
+   "question": "video content (VideoMAE) on top of title and cover",
+   "delta": -0.000967628135706744,
+   "ci95": [
+    -0.002606072539439004,
+    0.0005976982351587822
+   ],
+   "seeds": 5,
+   "significant": false
+  },
+  {
+   "label": "age_adjusted",
+   "model": "boosting",
+   "question": "title meaning (BGE-M3) on top of title words",
+   "delta": 0.026810064099076603,
+   "ci95": [
+    0.019534738077546927,
+    0.03418101510415058
+   ],
+   "seeds": 5,
+   "significant": true
+  },
+  {
+   "label": "age_adjusted",
+   "model": "boosting",
+   "question": "cover image (CLIP) on top of the title",
+   "delta": 0.055770679077928584,
+   "ci95": [
+    0.04860870076929068,
+    0.06283426437448153
+   ],
+   "seeds": 5,
+   "significant": true
+  },
+  {
+   "label": "age_adjusted",
+   "model": "boosting",
+   "question": "video content (VideoMAE) on top of title and cover",
+   "delta": -0.001333478414251843,
+   "ci95": [
+    -0.003282006836768419,
+    0.000528502413954283
+   ],
+   "seeds": 5,
+   "significant": false
+  },
+  {
+   "label": "age_adjusted",
+   "model": "fusion",
+   "question": "title meaning (BGE-M3) on top of title words",
+   "delta": 0.020971378340582224,
+   "ci95": [
+    0.013671919372119623,
+    0.02814687095161817
+   ],
+   "seeds": 5,
+   "significant": true
+  },
+  {
+   "label": "age_adjusted",
+   "model": "fusion",
+   "question": "cover image (CLIP) on top of the title",
+   "delta": 0.05205202245879996,
+   "ci95": [
+    0.045925436710299965,
+    0.058424902582537436
+   ],
+   "seeds": 5,
+   "significant": true
+  },
+  {
+   "label": "age_adjusted",
+   "model": "fusion",
+   "question": "video content (VideoMAE) on top of title and cover",
+   "delta": -0.003154928285886105,
+   "ci95": [
+    -0.0061364838527267224,
+    -0.0003506964802074278
+   ],
+   "seeds": 5,
+   "significant": true
+  },
+  {
+   "label": "age_adjusted",
+   "model": "boosting vs linear",
+   "question": "non-linear fusion, all inputs",
+   "delta": -0.011512410406544849,
+   "ci95": [
+    -0.01594574622481208,
+    -0.007129959660682332
+   ],
+   "seeds": 5,
+   "significant": true
+  },
+  {
+   "label": "age_adjusted",
+   "model": "fusion vs linear",
+   "question": "non-linear fusion, all inputs",
+   "delta": -0.003178914541522104,
+   "ci95": [
+    -0.006096300645714999,
+    -0.0002750076308987894
+   ],
+   "seeds": 5,
+   "significant": true
+  }
+ ],
+ "best": {
+  "model": "linear",
+  "features": "all",
+  "roc_auc": 0.704079579621195
+ },
+ "calibration": {
+  "raw": {
+   "ece": 0.21065412523694857,
+   "brier": 0.21500448882579803,
+   "mean_score": 0.4605773389339447
+  },
+  "isotonic_crossfit": {
+   "ece": 0.008638089227187236,
+   "brier": 0.16953891515731812,
+   "mean_score": 0.2502199113368988
+  },
+  "base_rate": 0.25
+ },
+ "ranking": {
+  "videos": 13236,
+  "spearman_score_vs_log_views": 0.42477629021331764
+ },
+ "cutoff_views": 2148000.0,
+ "slices": {
+  "age fifth": [
+   {
+    "slice": "newest",
+    "n": 2648,
+    "roc_auc": 0.7046640201569778,
+    "accuracy_at_0.5": 0.6650302114803626,
+    "trending_rate": 0.19561933534743203
+   },
+   {
+    "slice": "2nd",
+    "n": 2647,
+    "roc_auc": 0.7189451530352393,
+    "accuracy_at_0.5": 0.652058934642992,
+    "trending_rate": 0.23951643369852663
+   },
+   {
+    "slice": "3rd",
+    "n": 2647,
+    "roc_auc": 0.7170265200252656,
+    "accuracy_at_0.5": 0.6535700793350964,
+    "trending_rate": 0.26596146581035135
+   },
+   {
+    "slice": "4th",
+    "n": 2647,
+    "roc_auc": 0.7231268610282375,
+    "accuracy_at_0.5": 0.6709482432942955,
+    "trending_rate": 0.26936154136758594
+   },
+   {
+    "slice": "oldest",
+    "n": 2647,
+    "roc_auc": 0.6644895251798157,
+    "accuracy_at_0.5": 0.6414809217982622,
+    "trending_rate": 0.28447298828862866
+   }
+  ],
+  "title length": [
+   {
+    "slice": "0-3 words",
+    "n": 982,
+    "roc_auc": 0.690748487405519,
+    "accuracy_at_0.5": 0.6446028513238289,
+    "trending_rate": 0.2230142566191446
+   },
+   {
+    "slice": "4-7",
+    "n": 3248,
+    "roc_auc": 0.7003719850258258,
+    "accuracy_at_0.5": 0.6262315270935961,
+    "trending_rate": 0.2764778325123153
+   },
+   {
+    "slice": "8-12",
+    "n": 3495,
+    "roc_auc": 0.7063738000277658,
+    "accuracy_at_0.5": 0.6494992846924177,
+    "trending_rate": 0.25722460658082974
+   },
+   {
+    "slice": "13+",
+    "n": 5511,
+    "roc_auc": 0.7080825168025376,
+    "accuracy_at_0.5": 0.6811830883687171,
+    "trending_rate": 0.23698058428597352
+   }
+  ],
+  "views vs cut-off": [
+   {
+    "slice": "far below",
+    "n": 4903,
+    "roc_auc": null,
+    "accuracy_at_0.5": 0.7795227411788701,
+    "trending_rate": 0.0
+   },
+   {
+    "slice": "below",
+    "n": 3648,
+    "roc_auc": null,
+    "accuracy_at_0.5": 0.5910087719298246,
+    "trending_rate": 0.0
+   },
+   {
+    "slice": "near the cut-off",
+    "n": 2465,
+    "roc_auc": 0.519648128594312,
+    "accuracy_at_0.5": 0.49817444219066936,
+    "trending_rate": 0.4470588235294118
+   },
+   {
+    "slice": "above",
+    "n": 1575,
+    "roc_auc": null,
+    "accuracy_at_0.5": 0.6292063492063492,
+    "trending_rate": 1.0
+   },
+   {
+    "slice": "far above",
+    "n": 645,
+    "roc_auc": null,
+    "accuracy_at_0.5": 0.765891472868217,
+    "trending_rate": 1.0
+   }
+  ]
+ },
+ "confident_errors": {
+  "false_positives": [
+   {
+    "item": 8733,
+    "title": "the security bully elementary school students did not think that the student parents are a big man # I am in fast hands to catch up with the drama # Spring day to catch up with the drama plan single # fast hands screening room",
+    "views": 2111573,
+    "p": 0.8989999890327454
+   },
+   {
+    "item": 367,
+    "title": "# The movie six doors of the blood bug mystery case in the film and television unexpected ending",
+    "views": 1184097,
+    "p": 0.8939999938011169
+   },
+   {
+    "item": 14804,
+    "title": "the people according to the amount of food",
+    "views": 1065808,
+    "p": 0.8889999985694885
+   },
+   {
+    "item": 7880,
+    "title": "# movie dragon gave birth to nine children # I am in fast hands to catch up with a good play rich people think it is broken ball let the guy eat to pay the debt",
+    "views": 859000,
+    "p": 0.8799999952316284
+   },
+   {
+    "item": 17916,
+    "title": "the wife under the critically ill notice",
+    "views": 1377078,
+    "p": 0.871999979019165
+   },
+   {
+    "item": 727,
+    "title": "the female secretary reveals the birthmark on her arm",
+    "views": 1861712,
+    "p": 0.8659999966621399
+   },
+   {
+    "item": 11956,
+    "title": "those engraved in your DNA film and television hit",
+    "views": 1741000,
+    "p": 0.8640000224113464
+   },
+   {
+    "item": 6739,
+    "title": "# gathering photosynthetic creators # Fast hand film and television new hot plan",
+    "views": 1653821,
+    "p": 0.8579999804496765
+   }
+  ],
+  "false_negatives": [
+   {
+    "item": 4893,
+    "title": "(My Three Brothers) Episode 1 to be continued. #ooc apologies # Not original # gummies exclusive hashtag",
+    "views": 4135000,
+    "p": 0.0560000017285347
+   },
+   {
+    "item": 17537,
+    "title": "male: Shen Brother no! # Comics recommendation # Comics commentary # costume comics",
+    "views": 3180907,
+    "p": 0.09300000220537186
+   },
+   {
+    "item": 9813,
+    "title": "# real events real events (when military training last year) was really surprised to me \ud83d\ude2d \ud83d\ude2d \ud83d\ude2d SOS \ud83d\ude29 \ud83d\udca6 \ud83d\udca6 \ud83d\udca6 \ud83d\udca6 \ud83d\udca6 # instructor",
+    "views": 2426000,
+    "p": 0.13199999928474426
+   },
+   {
+    "item": 9384,
+    "title": "September play Shuai secret: flash # orange right Jing new skin",
+    "views": 3004000,
+    "p": 0.13300000131130219
+   },
+   {
+    "item": 18559,
+    "title": "episode 21 | about my fan is a pervert",
+    "views": 2378000,
+    "p": 0.13699999451637268
+   },
+   {
+    "item": 8896,
+    "title": "small dance in the tooth land to plant carrots # summer strike # two yuan # Tang three small dance",
+    "views": 2469416,
+    "p": 0.1379999965429306
+   },
+   {
+    "item": 13098,
+    "title": "[MC] Is this game so outrageous that Newton can finally be ecstatic? # Myworldfunny #minectaft#mc animation",
+    "views": 3423000,
+    "p": 0.1379999965429306
+   },
+   {
+    "item": 3293,
+    "title": "no",
+    "views": 3347000,
+    "p": 0.1469999998807907
+   }
+  ]
+ }
+}
